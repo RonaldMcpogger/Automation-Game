@@ -13,5 +13,10 @@ public class FPSControlScrip : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if(!pControl.isGrounded)
+        {
+            // Handle falling physics or other non-grounded behavior
+
+        }
     }
 }
