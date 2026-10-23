@@ -82,9 +82,14 @@ public class Conveyor : MonoBehaviour
         }
     }
 
-    private void OnCollisionEnter(Collision collision) => TryAttach(collision);
-    private void OnCollisionStay(Collision collision) => TryAttach(collision);
-
+    private void OnCollisionEnter(Collision collision)
+    {
+        TryAttach(collision);
+    }
+    private void OnCollisionStay(Collision collision)
+    {
+        TryAttach(collision);
+    }
     private void TryAttach(Collision collision)
     {
         Rigidbody body = collision.rigidbody;
