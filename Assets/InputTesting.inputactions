@@ -1,0 +1,36 @@
+{
+    "version": 1,
+    "name": "InputTesting",
+    "maps": [
+        {
+            "name": "Player",
+            "id": "bc1bc08f-59a1-4f20-8b6b-bbdaa644f8b7",
+            "actions": [
+                {
+                    "name": "EnableBuild",
+                    "type": "Button",
+                    "id": "25820ba1-1b4c-4e58-8f7f-59ff538a4638",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false,
+                    "priority": 0
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "27c8f564-f5e9-41ab-b739-7a539d1f2274",
+                    "path": "<Keyboard>/q",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "EnableBuild",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}

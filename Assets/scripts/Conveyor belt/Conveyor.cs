@@ -3,8 +3,20 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.Splines;
 
-/// <summary>Moves rigidbodies that land on this object's collider along its spline.</summary>
-[RequireComponent(typeof(Collider))]
+
+
+
+/// global struct to access
+
+
+
+
+
+
+
+/// <summary>Moves rigidbodies and objects that land on this object's collider along its spline.</summary>
+
+[RequireComponent(typeof(MeshCollider))]
 public class Conveyor : MonoBehaviour
 {
     [Header("Spline Container")]
@@ -41,7 +53,10 @@ public class Conveyor : MonoBehaviour
         RefreshSplineLength();
     }
 
-    private void OnValidate() => FindSplineContainer();
+    private void OnValidate()
+    {
+        FindSplineContainer();
+    }
 
     private void FixedUpdate()
     {
@@ -121,7 +136,7 @@ public class Conveyor : MonoBehaviour
         MoveAttachedBody(body, t, attachedBodies[body].surfaceHeight);
     }
 
-    private void MoveAttachedBody(Rigidbody body, float t, float surfaceHeight)
+    private void MoveAttachedBody(Rigidbody body, float t, float surfaceHeight) // the conveyor move function
     {
         Evaluate(t, out Vector3 position, out Vector3 tangent, out Vector3 up);
         float supportDistance = GetSupportDistance(body, up);
@@ -189,15 +204,16 @@ public class Conveyor : MonoBehaviour
         up = ConveyerSpline.transform.TransformDirection((Vector3)localUp).normalized;
     }
 
-    private void RefreshSplineLength()
+    private void RefreshSplineLength() // recalculate the spline length in case it has changed for the conveyor
     {
         if (ConveyerSpline != null && ConveyerSpline.Spline != null)
             splineLength = ConveyerSpline.CalculateLength();
     }
 
-    private void FindSplineContainer()
+    private void FindSplineContainer() // find the spline
     {
         if (ConveyerSpline == null)
+
             ConveyerSpline = GetComponent<SplineContainer>();
     }
 }
