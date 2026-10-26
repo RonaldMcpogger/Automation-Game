@@ -23,9 +23,48 @@ public class Conveyor : MonoBehaviour
     public bool snapRotation = true;
     [Min(0f)] public float rotationSpeed = 720f;
 
+    [Header("Factory Output (optional)")]
+    public ConveyorReceiver outputReceiver;
+    [Min(0.1f)] public float minimumSpacing = 0.8f;
+
     private readonly Dictionary<Rigidbody, Attachment> attachedBodies = new();
     private readonly Dictionary<Rigidbody, float> recentlyReleased = new();
+    private readonly List<Rigidbody> bodyBuffer = new();
+    private readonly List<Rigidbody> releasedBuffer = new();
     private float splineLength;
+
+    public int ItemCount => attachedBodies.Count;
+    public Vector3 StartPosition
+    {
+        get
+        {
+            Evaluate(0f, out var position, out _, out _);
+            return position;
+        }
+    }
+
+    public bool CanLoadAtStart
+    {
+        get
+        {
+            if (!isActiveAndEnabled || ConveyerSpline == null || ConveyerSpline.Spline == null
+                || ConveyerSpline.Spline.Closed || splineLength <= Mathf.Epsilon)
+                return false;
+            foreach (var attachment in attachedBodies.Values)
+                if (attachment.t * splineLength < minimumSpacing)
+                    return false;
+            return true;
+        }
+    }
+
+    /// <summary>Explicit machine output avoids relying on a falling item's collision timing.</summary>
+    public bool TryLoadAtStart(Rigidbody body, float surfaceHeight)
+    {
+        if (body == null || attachedBodies.ContainsKey(body) || !CanLoadAtStart)
+            return false;
+        Attach(body, 0f, surfaceHeight);
+        return true;
+    }
 
     private struct Attachment
     {
@@ -53,11 +92,21 @@ public class Conveyor : MonoBehaviour
             return;
 
         float now = Time.time;
-        foreach (Rigidbody body in new List<Rigidbody>(recentlyReleased.Keys))
+        releasedBuffer.Clear();
+        releasedBuffer.AddRange(recentlyReleased.Keys);
+        foreach (Rigidbody body in releasedBuffer)
             if (recentlyReleased[body] <= now)
                 recentlyReleased.Remove(body);
 
-        foreach (Rigidbody body in new List<Rigidbody>(attachedBodies.Keys))
+        bodyBuffer.Clear();
+        bodyBuffer.AddRange(attachedBodies.Keys);
+        // Move the leading item first so followers can queue behind its new position.
+        bool queueAtOutput = outputReceiver != null && !ConveyerSpline.Spline.Closed && speed >= 0f;
+        if (queueAtOutput)
+            bodyBuffer.Sort((a, b) => attachedBodies[b].t.CompareTo(attachedBodies[a].t));
+        float frontT = float.PositiveInfinity;
+
+        foreach (Rigidbody body in bodyBuffer)
         {
             if (body == null)
             {
@@ -67,18 +116,33 @@ public class Conveyor : MonoBehaviour
 
             Attachment attachment = attachedBodies[body];
             float nextT = attachment.t + speed * Time.fixedDeltaTime / splineLength;
+            if (queueAtOutput)
+                nextT = Mathf.Max(attachment.t, Mathf.Min(nextT, frontT - minimumSpacing / splineLength));
 
             if (ConveyerSpline.Spline.Closed)
                 nextT = Mathf.Repeat(nextT, 1f);
             else if (nextT < 0f || nextT > 1f)
             {
-                Release(body, attachment, Mathf.Clamp01(nextT), keepMomentumAtEnd);
-                continue;
+                if (queueAtOutput)
+                {
+                    if (outputReceiver.TryReceive(body))
+                    {
+                        attachedBodies.Remove(body);
+                        continue;
+                    }
+                    nextT = 1f;
+                }
+                else
+                {
+                    Release(body, attachment, Mathf.Clamp01(nextT), keepMomentumAtEnd);
+                    continue;
+                }
             }
 
             attachment.t = nextT;
             attachedBodies[body] = attachment;
             MoveAttachedBody(body, nextT, attachment.surfaceHeight);
+            frontT = nextT;
         }
     }
 
@@ -107,10 +171,15 @@ public class Conveyor : MonoBehaviour
         if (landingSurfaceHeight < -0.001f)
             return;
 
+        Attach(body, t, landingSurfaceHeight);
+    }
+
+    private void Attach(Rigidbody body, float t, float surfaceHeight)
+    {
         attachedBodies.Add(body, new Attachment
         {
             t = t,
-            surfaceHeight = landingSurfaceHeight,
+            surfaceHeight = surfaceHeight,
             originalKinematic = body.isKinematic,
             originalUseGravity = body.useGravity
         });
@@ -119,6 +188,20 @@ public class Conveyor : MonoBehaviour
         body.isKinematic = true;
         body.useGravity = false;
         MoveAttachedBody(body, t, attachedBodies[body].surfaceHeight);
+    }
+
+    private void OnDisable()
+    {
+        // Removing a belt must not leave its cargo permanently kinematic.
+        foreach (var entry in attachedBodies)
+        {
+            if (entry.Key == null)
+                continue;
+            entry.Key.isKinematic = entry.Value.originalKinematic;
+            entry.Key.useGravity = entry.Value.originalUseGravity;
+        }
+        attachedBodies.Clear();
+        recentlyReleased.Clear();
     }
 
     private void MoveAttachedBody(Rigidbody body, float t, float surfaceHeight)
