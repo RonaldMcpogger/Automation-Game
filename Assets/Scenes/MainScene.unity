@@ -630,7 +630,7 @@ MonoBehaviour:
   conveyorHeightOffset: 1
   minConveyorLength: 1
   conveyorRadius: 0.5
-  conveyorSides: 8
+  conveyorSides: 4
   conveyorSegmentsPerUnit: 4
   machineMaterial: {fileID: 0}
   binMaterial: {fileID: 0}

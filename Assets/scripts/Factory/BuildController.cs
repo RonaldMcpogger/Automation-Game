@@ -3,7 +3,10 @@ using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Splines;
-using Object = UnityEngine.Object;
+//using Object = UnityEngine.Object;
+
+using UnityEngine.Splines.ExtrusionShapes; // needed to change spline shape from circle to square for conveyor preview and construction
+
 
 public enum BuildableType
 {
@@ -43,9 +46,23 @@ public class BuildController : MonoBehaviour
     [Tooltip("Radius / thickness of the extruded conveyor belt (default 0.5m; previously 0.83m).")]
     [Range(0.2f, 1.2f)] public float conveyorRadius = 0.5f;
     [Tooltip("Number of cross-section sides for the extruded conveyor mesh (default 8).")]
-    [Range(4, 16)] public int conveyorSides = 8;
+    [Range(4, 16)] public int conveyorSides = 4;
     [Tooltip("Number of mesh segments per unit along the conveyor curve (default 4).")]
     [Range(1f, 10f)] public float conveyorSegmentsPerUnit = 4f;
+
+    [Header("Conveyor Curve Limits")]
+    [Tooltip("Allow a conveyor connected to directed endpoints to bend using a cubic Bezier curve.")]
+    public bool enableConveyorCurves = true;
+    [Tooltip("A belt shorter than this stays straight; short curves are too sharp to read or traverse well.")]
+    [Min(0.5f)] public float minCurveLength = 3f;
+    [Tooltip("The start/end direction must differ from the direct route by at least this angle before a bend is added.")]
+    [Range(0f, 89f)] public float minCurveAngle = 8f;
+    [Tooltip("Directions that require a sharper turn than this are rejected and produce a straight belt.")]
+    [Range(5f, 170f)] public float maxCurveAngle = 75f;
+    [Tooltip("Endpoints farther apart vertically than this stay straight, preventing impractically steep bends.")]
+    [Min(0f)] public float maxCurveHeightDifference = 2f;
+    [Tooltip("Length of each Bezier control handle as a fraction of the endpoint distance.")]
+    [Range(0.1f, 0.5f)] public float curveHandleLengthRatio = 0.33f;
 
     [Header("Materials (Optional overrides)")]
     public Material machineMaterial;
@@ -71,6 +88,8 @@ public class BuildController : MonoBehaviour
     private bool conveyorHasStart;
     private Vector3 conveyorStartPoint;
     private FactoryMachine activeStartMachine;
+    // Retains the start attachment so the final belt and its preview use the same tangent direction.
+    private SnapTarget conveyorStartSnap;
     private SnapTarget currentSnap;
 
     // Ghost preview objects
@@ -78,7 +97,7 @@ public class BuildController : MonoBehaviour
     private GameObject previewStartMarker;
     private GameObject previewSplineObj;
     private SplineContainer previewSplineContainer;
-    private SplineExtrude previewSplineExtrude;
+    private Mesh previewSplineMesh;
     private GameObject previewBuildingObj;
 
     private BuildModeUI buildUI;
@@ -172,6 +191,7 @@ public class BuildController : MonoBehaviour
                 {
                     conveyorHasStart = false;
                     activeStartMachine = null;
+                    conveyorStartSnap = default;
                 }
                 else
                 {
@@ -233,6 +253,7 @@ public class BuildController : MonoBehaviour
         SelectedType = type;
         conveyorHasStart = false;
         activeStartMachine = null;
+        conveyorStartSnap = default;
         UpdatePreviewMesh();
     }
 
@@ -294,6 +315,7 @@ public class BuildController : MonoBehaviour
         {
             conveyorHasStart = false;
             activeStartMachine = null;
+            conveyorStartSnap = default;
             return;
         }
 
@@ -323,6 +345,7 @@ public class BuildController : MonoBehaviour
                 bool snapped = TryGetSnapTarget(true, hit.point, out SnapTarget snap);
                 conveyorStartPoint = snapped ? snap.position : hit.point + Vector3.up * conveyorHeightOffset;
                 activeStartMachine = snapped ? snap.machine : null;
+                conveyorStartSnap = snapped ? snap : default;
                 conveyorHasStart = true;
             }
             else
@@ -336,7 +359,11 @@ public class BuildController : MonoBehaviour
 
                 if (Vector3.Distance(conveyorStartPoint, endPoint) >= minConveyorLength)
                 {
-                    var conveyor = BuildConveyorBelt(conveyorStartPoint, endPoint);
+                    var conveyor = BuildConveyorBelt(
+                        conveyorStartPoint,
+                        endPoint,
+                        conveyorStartSnap,
+                        snapped ? snap : default);
 
                     if (activeStartMachine != null)
                         activeStartMachine.outputBelt = conveyor;
@@ -345,6 +372,7 @@ public class BuildController : MonoBehaviour
 
                     conveyorHasStart = false;
                     activeStartMachine = null;
+                    conveyorStartSnap = default;
                 }
             }
         }
@@ -535,20 +563,9 @@ public class BuildController : MonoBehaviour
                     var spline = previewSplineContainer.Spline;
                     spline.Clear();
 
-                    float3 p0 = previewSplineContainer.transform.InverseTransformPoint(conveyorStartPoint);
-                    float3 p1 = previewSplineContainer.transform.InverseTransformPoint(endPoint);
-                    float3 delta = p1 - p0;
-                    float3 dir = math.lengthsq(delta) > 0.001f ? math.normalize(delta) : new float3(0, 0, 1);
-                    quaternion rot = quaternion.LookRotationSafe(dir, new float3(0, 1, 0));
-
-                    spline.Add(new BezierKnot(p0, float3.zero, float3.zero, rot));
-                    spline.Add(new BezierKnot(p1, float3.zero, float3.zero, rot));
-                    spline.Closed = false;
-
-                    previewSplineExtrude.Radius = conveyorRadius;
-                    previewSplineExtrude.Sides = conveyorSides;
-                    previewSplineExtrude.SegmentsPerUnit = conveyorSegmentsPerUnit;
-                    previewSplineExtrude.Rebuild();
+                    ConfigureConveyorSpline(spline, conveyorStartPoint, endPoint, conveyorStartSnap,
+                        snapped ? currentSnap : default);
+                    RebuildSquareConveyorMesh(previewSplineContainer, previewSplineMesh);
                 }
                 else
                 {
@@ -605,6 +622,7 @@ public class BuildController : MonoBehaviour
         IsBuildModeActive = active;
         conveyorHasStart = false;
         activeStartMachine = null;
+        conveyorStartSnap = default;
         currentSnap = default;
 
         if (previewRoot != null)
@@ -619,25 +637,31 @@ public class BuildController : MonoBehaviour
 
     #region Building Spawning
 
+    /// <summary>
+    /// Creates a conveyor between two points. The two-argument overload is kept for tests and
+    /// programmatic callers that do not have attachment information, so it creates a straight belt.
+    /// </summary>
     public Conveyor BuildConveyorBelt(Vector3 start, Vector3 end)
     {
+        return BuildConveyorBelt(start, end, default, default);
+    }
+
+    /// <summary>
+    /// Builds a conveyor mesh and its transport component using the same Bezier spline.
+    /// Flow: (1) create the object and spline container; (2) select bounded curve handles from
+    /// attached endpoints; (3) extrude the flat square belt along that spline; (4) assign the
+    /// collider; and (5) configure item movement to follow the spline's top-facing up direction.
+    /// </summary>
+    private Conveyor BuildConveyorBelt(Vector3 start, Vector3 end, SnapTarget startSnap, SnapTarget endSnap)
+    {
+        // 1. The container remains unrotated so spline up stays world-up on a level belt.
         var beltObj = new GameObject("Conveyor Belt");
         beltObj.transform.position = Vector3.zero;
         beltObj.transform.rotation = Quaternion.identity;
 
         var container = beltObj.AddComponent<SplineContainer>();
         var spline = container.Spline;
-        spline.Clear();
-
-        float3 p0 = start;
-        float3 p1 = end;
-        float3 delta = p1 - p0;
-        float3 dir = math.lengthsq(delta) > 0.001f ? math.normalize(delta) : new float3(0, 0, 1);
-        quaternion rot = quaternion.LookRotationSafe(dir, new float3(0, 1, 0));
-
-        spline.Add(new BezierKnot(p0, float3.zero, float3.zero, rot));
-        spline.Add(new BezierKnot(p1, float3.zero, float3.zero, rot));
-        spline.Closed = false;
+        ConfigureConveyorSpline(spline, start, end, startSnap, endSnap);
 
         var filter = beltObj.AddComponent<MeshFilter>();
         var renderer = beltObj.AddComponent<MeshRenderer>();
@@ -646,15 +670,13 @@ public class BuildController : MonoBehaviour
         var collider = beltObj.AddComponent<MeshCollider>();
         collider.convex = false;
 
-        var extrude = beltObj.AddComponent<SplineExtrude>();
-        extrude.Container = container;
-        extrude.Radius = conveyorRadius;
-        extrude.SegmentsPerUnit = conveyorSegmentsPerUnit;
-        extrude.Sides = conveyorSides;
-        extrude.Capped = true;
-        extrude.Rebuild();
+        // 3. Generate the visual mesh from the same spline that moves objects.
+        var mesh = new Mesh { name = "Square Conveyor Mesh" };
+        filter.sharedMesh = mesh;
+        RebuildSquareConveyorMesh(container, mesh);
 
-        collider.sharedMesh = filter.sharedMesh;
+        // 4. The collider exactly matches the generated curved mesh.
+        collider.sharedMesh = mesh;
 
         var conveyor = beltObj.AddComponent<Conveyor>();
         conveyor.ConveyerSpline = container;
@@ -669,6 +691,84 @@ public class BuildController : MonoBehaviour
         ConnectConveyorEndpoints(conveyor, start, end);
 
         return conveyor;
+    }
+
+    /// <summary>
+    /// Configures a two-knot cubic Bezier path for a conveyor.
+    /// Flow: (1) start with the direct route; (2) obtain attachment travel directions; (3) validate
+    /// distance, height, and turn-angle limits; (4) use a straight line if any limit fails; otherwise
+    /// (5) place Bezier handles along those directions. Tangents are stored in local space because
+    /// each conveyor container is intentionally unrotated.
+    /// </summary>
+    private void ConfigureConveyorSpline(Spline spline, Vector3 start, Vector3 end,
+        SnapTarget startSnap, SnapTarget endSnap)
+    {
+        spline.Clear(); // clean up existing spline
+
+        Vector3 directDirection = end - start;
+        float directLength = directDirection.magnitude;
+        if (directLength < 0.001f)
+            return;
+
+        directDirection /= directLength;
+        Vector3 startDirection = GetAttachmentDirection(startSnap, true, directDirection);
+        Vector3 endDirection = GetAttachmentDirection(endSnap, false, directDirection);
+
+        // Accept a curve only when it is long enough, not too steep, and both endpoint turns are safe.
+        float startAngle = Vector3.Angle(directDirection, startDirection);
+        float endAngle = Vector3.Angle(directDirection, endDirection);
+        bool needsCurve = startAngle >= minCurveAngle || endAngle >= minCurveAngle;
+        bool curveIsAcceptable = enableConveyorCurves
+            && directLength >= minCurveLength
+            && Mathf.Abs(end.y - start.y) <= maxCurveHeightDifference
+            && startAngle <= maxCurveAngle
+            && endAngle <= maxCurveAngle;
+
+        float handleLength = needsCurve && curveIsAcceptable
+            ? directLength * curveHandleLengthRatio
+            : 0f;
+
+        // TangentOut leaves the start; TangentIn sits behind the end, hence its negative direction.
+        var startKnot = new BezierKnot((float3)start, float3.zero,
+            (float3)(startDirection * handleLength), quaternion.identity);
+        var endKnot = new BezierKnot((float3)end,
+            (float3)(-endDirection * handleLength), float3.zero, quaternion.identity);
+
+        spline.Add(startKnot);
+        spline.Add(endKnot);
+        spline.Closed = false;
+    }
+
+    /// <summary>
+    /// Returns the direction in which a belt should leave or enter a snapped endpoint. Machines and
+    /// receivers use their forward axis; chained belts use their actual spline tangent. Free placement
+    /// returns the direct route, which naturally produces a straight belt.
+    /// </summary>
+    private Vector3 GetAttachmentDirection(SnapTarget snap, bool isStart, Vector3 fallback)
+    {
+        Vector3 direction = fallback;
+
+        if (snap.machine != null)
+            direction = snap.machine.transform.forward;
+        else if (snap.receiver != null)
+            direction = snap.receiver.transform.forward;
+        else if (snap.conveyor != null && snap.conveyor.ConveyerSpline != null)
+            direction = snap.conveyor.ConveyerSpline.EvaluateTangent(isStart ? 1f : 0f);
+
+        return direction.sqrMagnitude > 0.0001f ? direction.normalized : fallback;
+    }
+
+    /// <summary>
+    /// Rebuilds the square-profile mesh after the spline is configured. The square template is flat
+    /// relative to spline up, so Conveyor continues to place carried items above its upper face.
+    /// </summary>
+    private void RebuildSquareConveyorMesh(SplineContainer container, Mesh mesh)
+    {
+        int segments = Mathf.Max(2,
+            Mathf.CeilToInt(container.CalculateLength() * conveyorSegmentsPerUnit));
+
+        // Square spans -0.5 to +0.5, so multiply by two to preserve the existing belt width.
+        SplineMesh.Extrude(container.Spline, mesh, conveyorRadius * 2f, segments, true, new Square());
     }
 
     public FactoryMachine BuildSmelter(Vector3 groundPoint, Quaternion rotation)
@@ -848,16 +948,14 @@ public class BuildController : MonoBehaviour
         previewSplineObj = new GameObject("ConveyorSplinePreview");
         previewSplineObj.transform.SetParent(previewRoot.transform, false);
         previewSplineContainer = previewSplineObj.AddComponent<SplineContainer>();
-        previewSplineObj.AddComponent<MeshFilter>();
+        var filter = previewSplineObj.AddComponent<MeshFilter>();
         var renderer = previewSplineObj.AddComponent<MeshRenderer>();
         renderer.sharedMaterial = ghostMaterial;
 
-        previewSplineExtrude = previewSplineObj.AddComponent<SplineExtrude>();
-        previewSplineExtrude.Container = previewSplineContainer;
-        previewSplineExtrude.Radius = conveyorRadius;
-        previewSplineExtrude.SegmentsPerUnit = conveyorSegmentsPerUnit;
-        previewSplineExtrude.Sides = conveyorSides;
-        previewSplineExtrude.Capped = true;
+        // The preview uses the same square mesh generator as the final conveyor.
+        previewSplineMesh = new Mesh { name = "Square Conveyor Preview Mesh" };
+        previewSplineMesh.hideFlags = HideFlags.DontSave;
+        filter.sharedMesh = previewSplineMesh;
         SetLayerRecursively(previewSplineObj, 2);
 
         // Building preview (Cube)

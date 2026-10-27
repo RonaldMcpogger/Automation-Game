@@ -68,9 +68,9 @@ public class BuildModeTests
         Assert.That(container, Is.Not.Null, "Conveyor must have SplineContainer.");
         Assert.That(container.Spline.Count, Is.EqualTo(2), "Spline should have start and end knots.");
 
-        var extrude = conveyor.GetComponent<SplineExtrude>();
-        Assert.That(extrude, Is.Not.Null, "Conveyor must have SplineExtrude.");
-        Assert.That(extrude.Radius, Is.EqualTo(buildController.conveyorRadius), "Extrude radius should match controller conveyorRadius.");
+        var meshFilter = conveyor.GetComponent<MeshFilter>();
+        Assert.That(meshFilter, Is.Not.Null, "Conveyor must have a MeshFilter.");
+        Assert.That(meshFilter.sharedMesh, Is.Not.Null, "Conveyor must generate its square extrusion mesh.");
 
         var meshCollider = conveyor.GetComponent<MeshCollider>();
         Assert.That(meshCollider, Is.Not.Null, "Conveyor must have MeshCollider.");
