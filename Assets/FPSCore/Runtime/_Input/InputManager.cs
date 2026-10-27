@@ -11,6 +11,7 @@ public class InputManager : MonoBehaviour
     private static InputManager _instance;
     private static bool _quitting;
 
+    //Creates only 1 instance of Input Manager and returns it the referenced instanced Input Manager.
     public static InputManager Instance
     {
         get
@@ -37,19 +38,24 @@ public class InputManager : MonoBehaviour
     [SerializeField]
     private bool lockCursorOnStart = true;
 
-    // Asset action names (must match the asset).
-    private const string MoveName = "Move",
-        LookName = "Look",
-        JumpName = "Jump",
-        CrouchName = "Crouch",
-        CrouchToggleName = "CrouchToggle",
-        InteractName = "Interact",
-        SprintName = "Sprint",
-        ZoomName = "Zoom",
-        UnlockName = "UnlockCursor";
+    /// <summary>
+    /// - Input Action Names (must match the referenced <see cref="inputAsset">)
+    /// - Add more action names that suits your project key inputs
+    /// </summary>
+    private const string MOVE_NAME = "Move",
+        LOOK_NAME = "Look",
+        JUMP_NAME = "Jump",
+        CROUCH_NAME = "Crouch",
+        CROUCH_TOGGLE_NAME = "CrouchToggle",
+        INTERACT_NAME = "Interact",
+        SPRINT_NAME = "Sprint",
+        ZOOM_NAME = "Zoom",
+        UNLOCK_NAME = "UnlockCursor";
 
-    //Add more action names that suits your project key inputs
-
+    /// <summary>
+    /// - Input Action variables (must match the referenced Keynames above>)
+    /// - Add more action map variables that suits your project key inputs
+    /// </summary>
     private InputAction _move,
         _look,
         _jump,
@@ -60,7 +66,9 @@ public class InputManager : MonoBehaviour
         _zoom,
         _unlock;
 
-    // Add input action key names. For example
+    //_grab,
+    //_slide,
+    //...
 
     private float _lookScale = 1f;
     private int _relockFrame = -1; // frame the cursor was re-locked by a click
@@ -90,6 +98,15 @@ public class InputManager : MonoBehaviour
     private readonly List<Object> _deadOwners = new();
 
     public bool UsingAsset => _runtimeAsset != null;
+
+    /// <summary>Action map the game reads (a clone of the asset). Null while on code bindings only.</summary>
+    public InputActionMap Map => _map;
+
+    /// <summary>Project input asset assigned in the inspector (the original, never rebound).</summary>
+    public InputActionAsset InputAsset => inputAsset;
+
+    /// <summary>Name of the action map read from the asset.</summary>
+    public string ActionMapName => actionMapName;
 
     /// <summary>False while a UI is open or gameplay was switched off.</summary>
     public bool GameplayEnabled => _gameplayOn && !UIMode;
@@ -172,6 +189,7 @@ public class InputManager : MonoBehaviour
         );
         a.Enable();
         _extra[actionName] = a;
+
         return a;
     }
 
@@ -259,9 +277,11 @@ public class InputManager : MonoBehaviour
         SetCursorLocked(lockCursorOnStart);
     }
 
-    //Build Actions if Input Action Mappings doesn't exist in Input Actions Asset.
-    // For Example, if Interact Key Map is missing in Input Actions Asset, this function will automatically
-    // build a default input action mapping.
+    /// <summary>
+    /// - Build Actions if Input Action Mappings doesn't exist in <see cref="inputAsset">.
+    /// - For Example, if <see cref="_interact"> is missing in Input Actions Asset,
+    /// - this function will automatically build a default input action mapping.
+    /// </summary>
     private void BuildActions()
     {
         InputActionMap map = null;
@@ -277,14 +297,14 @@ public class InputManager : MonoBehaviour
         }
         _map = map;
 
-        _move = Pick(map, MoveName, () => MakeMove());
+        _move = Pick(map, MOVE_NAME, () => MakeMove());
         _look = Pick(
             map,
-            LookName,
+            LOOK_NAME,
             () =>
                 Own(
                     new InputAction(
-                        LookName,
+                        LOOK_NAME,
                         InputActionType.Value,
                         "<Mouse>/delta",
                         expectedControlType: "Vector2"
@@ -293,35 +313,35 @@ public class InputManager : MonoBehaviour
         ); // raw px/frame: no deltaTime
         _jump = Pick(
             map,
-            JumpName,
-            () => Own(Button(JumpName, "<Keyboard>/space", "<Gamepad>/buttonSouth"))
+            JUMP_NAME,
+            () => Own(Button(JUMP_NAME, "<Keyboard>/space", "<Gamepad>/buttonSouth"))
         );
         _crouch = Pick(
             map,
-            CrouchName,
-            () => Own(Button(CrouchName, "<Keyboard>/leftCtrl", "<Gamepad>/buttonEast"))
+            CROUCH_NAME,
+            () => Own(Button(CROUCH_NAME, "<Keyboard>/leftCtrl", "<Gamepad>/buttonEast"))
         );
         _crouchToggle = Pick(
             map,
-            CrouchToggleName,
-            () => Own(Button(CrouchToggleName, "<Keyboard>/c"))
+            CROUCH_TOGGLE_NAME,
+            () => Own(Button(CROUCH_TOGGLE_NAME, "<Keyboard>/c"))
         );
         _interact = Pick(
             map,
-            InteractName,
-            () => Own(Button(InteractName, "<Keyboard>/e", "<Gamepad>/buttonWest"))
+            INTERACT_NAME,
+            () => Own(Button(INTERACT_NAME, "<Keyboard>/e", "<Gamepad>/buttonWest"))
         );
         _sprint = Pick(
             map,
-            SprintName,
-            () => Own(Button(SprintName, "<Keyboard>/leftShift", "<Gamepad>/leftStickPress"))
+            SPRINT_NAME,
+            () => Own(Button(SPRINT_NAME, "<Keyboard>/leftShift", "<Gamepad>/leftStickPress"))
         );
         _zoom = Pick(
             map,
-            ZoomName,
-            () => Own(Button(ZoomName, "<Mouse>/rightButton", "<Gamepad>/leftTrigger"))
+            ZOOM_NAME,
+            () => Own(Button(ZOOM_NAME, "<Mouse>/rightButton", "<Gamepad>/leftTrigger"))
         );
-        _unlock = Pick(map, UnlockName, () => Own(Button(UnlockName, "<Keyboard>/escape")));
+        _unlock = Pick(map, UNLOCK_NAME, () => Own(Button(UNLOCK_NAME, "<Keyboard>/escape")));
         //Add more action mappings here if you add additional input actions in your input asset.
         //...
 
@@ -385,7 +405,7 @@ public class InputManager : MonoBehaviour
     private InputAction MakeMove()
     {
         var a = Own(
-            new InputAction(MoveName, InputActionType.Value, expectedControlType: "Vector2")
+            new InputAction(MOVE_NAME, InputActionType.Value, expectedControlType: "Vector2")
         );
         a.AddCompositeBinding("2DVector")
             .With("Up", "<Keyboard>/w")
@@ -393,6 +413,8 @@ public class InputManager : MonoBehaviour
             .With("Left", "<Keyboard>/a")
             .With("Right", "<Keyboard>/d");
         a.AddBinding("<Gamepad>/leftStick");
+
+        //Add custom bindings here through code.
         return a;
     }
 

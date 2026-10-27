@@ -56,6 +56,37 @@ public static class FactoryPrototypeSetup
         Debug.Log("Factory preview saved to Logs/first-factory-preview.png (scene not saved).");
     }
 
+    [MenuItem("Tools/Factory Prototype/Configure Build Mode in Main Scene")]
+    public static void ConfigureBuildMode()
+    {
+        var scene = EditorSceneManager.OpenScene(ScenePath);
+        var player = Object.FindAnyObjectByType<FactoryPlayer>();
+        if (player == null)
+            throw new InvalidOperationException("FactoryPlayer not found in MainScene.");
+
+        var buildController = player.GetComponent<BuildController>();
+        if (buildController == null)
+            buildController = player.gameObject.AddComponent<BuildController>();
+
+        buildController.viewCamera = player.viewCamera;
+        buildController.playerTransform = player.transform;
+        buildController.machineMaterial = AssetDatabase.LoadAssetAtPath<Material>($"{ArtPath}/Machine.mat");
+        buildController.binMaterial = AssetDatabase.LoadAssetAtPath<Material>($"{ArtPath}/Bin.mat");
+        buildController.oreMaterial = AssetDatabase.LoadAssetAtPath<Material>($"{ArtPath}/Iron Ore.mat");
+        buildController.yellowMaterial = AssetDatabase.LoadAssetAtPath<Material>($"{ArtPath}/Safety Yellow.mat");
+        buildController.greenMaterial = AssetDatabase.LoadAssetAtPath<Material>($"{ArtPath}/Working.mat");
+        buildController.redMaterial = AssetDatabase.LoadAssetAtPath<Material>($"{ArtPath}/Blocked.mat");
+
+        var ingotObj = AssetDatabase.LoadAssetAtPath<GameObject>($"{ArtPath}/Iron Ingot.prefab");
+        if (ingotObj != null)
+            buildController.ingotPrefab = ingotObj.GetComponent<FactoryItem>();
+
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene);
+        AssetDatabase.SaveAssets();
+        Debug.Log("Build Mode configured and saved on Player in MainScene.");
+    }
+
     [MenuItem("Tools/Factory Prototype/Set Up Main Scene")]
     public static void Build()
     {
@@ -165,6 +196,18 @@ public static class FactoryPrototypeSetup
         player.viewCamera = controller.GetComponentInChildren<Camera>();
         player.machine = machine;
         player.submissionBin = bin;
+
+        var buildController = controller.gameObject.AddComponent<BuildController>();
+        buildController.viewCamera = player.viewCamera;
+        buildController.playerTransform = controller.transform;
+        buildController.machineMaterial = shell;
+        buildController.binMaterial = dark;
+        buildController.oreMaterial = ore;
+        buildController.yellowMaterial = yellow;
+        buildController.greenMaterial = green;
+        buildController.redMaterial = red;
+        buildController.ingotPrefab = machine.ingotPrefab;
+
         controller.GetComponent<CharacterController>().enabled = false;
         controller.transform.position = new Vector3(start.x - 4f, 1.05f, start.z + 8f);
         controller.transform.rotation = Quaternion.Euler(0, 180, 0);

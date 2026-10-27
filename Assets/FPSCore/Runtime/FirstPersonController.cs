@@ -3,181 +3,193 @@ using UnityEngine;
 using Unity.Cinemachine;
 #endif
 
+/// <summary>
+/// FPS Controller Base
+/// - The Main FPS Controller for the player.
+/// - It handles all the player movement including the ff:
+///     - Move
+///     - Look
+///     - Crouch
+///     - Jump
+///     - Sprint (Toggable Limited Stamina)
+///     - View bobbing (Toggable)
+///     - Zoom In
+/// </summary>
 [RequireComponent(typeof(CharacterController))]
 public class FirstPersonController : MonoBehaviour
 {
     [Header("References")]
     [Tooltip("Empty child at eye level. The CinemachineCamera is a child of this.")]
     [SerializeField]
-    Transform cameraTarget;
+    private Transform cameraTarget;
 
     [Header("Look")]
     [Tooltip("Degrees per mouse pixel.")]
     [SerializeField]
-    float sensitivity = 0.1f;
+    private float sensitivity = 0.1f;
 
     [SerializeField, Range(10f, 89f)]
-    float pitchLimit = 85f;
+    private float pitchLimit = 85f;
 
     [Tooltip("Head turn limit relative to body. Past this, the body rotates.")]
     [SerializeField, Range(30f, 180f)]
-    float maxHeadYaw = 90f;
+    private float maxHeadYaw = 90f;
 
     [Tooltip("Body auto-aligns to view direction while moving (deg/s). 0 = off.")]
     [SerializeField]
-    float bodyAlignSpeed = 360f;
+    private float bodyAlignSpeed = 360f;
 
     [SerializeField]
-    bool invertY;
+    private bool invertY;
 
     [Header("Movement")]
     [SerializeField]
-    float walkSpeed = 4f;
+    private float walkSpeed = 4f;
 
     [SerializeField]
-    float crouchSpeed = 2f;
+    private float crouchSpeed = 2f;
 
     [Tooltip("Ground acceleration (m/s²).")]
     [SerializeField]
-    float acceleration = 30f;
+    private float acceleration = 30f;
 
     [Tooltip("Acceleration multiplier while airborne.")]
     [SerializeField, Range(0f, 1f)]
-    float airControl = 0.3f;
+    private float airControl = 0.3f;
 
     [Header("Sprint (Shift)")]
     [SerializeField]
-    float sprintSpeed = 6.5f;
+    private float sprintSpeed = 6.5f;
 
     [Tooltip("On = stamina-limited. Off = unlimited sprint.")]
     [SerializeField]
-    bool limitedStamina = true;
+    private bool limitedStamina = true;
 
     [SerializeField]
-    float maxStamina = 100f;
+    private float maxStamina = 100f;
 
     [Tooltip("Stamina spent per second while sprinting.")]
     [SerializeField]
-    float staminaDrainRate = 20f;
+    private float staminaDrainRate = 20f;
 
     [Tooltip("Stamina regained per second when not sprinting.")]
     [SerializeField]
-    float staminaRegenRate = 15f;
+    private float staminaRegenRate = 15f;
 
     [Tooltip("Seconds after sprinting before regen starts.")]
     [SerializeField]
-    float regenDelay = 1f;
+    private float regenDelay = 1f;
 
     [Tooltip("After running out, stamina fraction needed to sprint again.")]
     [SerializeField, Range(0f, 1f)]
-    float exhaustRecovery = 0.25f;
+    private float exhaustRecovery = 0.25f;
 
     [Tooltip("Bob amplitude multiplier while sprinting.")]
     [SerializeField]
-    float sprintBobMultiplier = 1.3f;
+    private float sprintBobMultiplier = 1.3f;
 
     [Tooltip("Runtime display (overwritten each frame when limited).")]
     [SerializeField]
-    float stamina;
+    private float stamina;
 
     [Header("Jump")]
     [SerializeField]
-    float jumpHeight = 1.2f;
+    private float jumpHeight = 1.2f;
 
     [SerializeField]
-    float gravity = 20f;
+    private float gravity = 20f;
 
     [Header("Crouch")]
     [SerializeField]
-    float crouchHeight = 1f;
+    private float crouchHeight = 1f;
 
     [Tooltip("Eye height above feet.")]
     [SerializeField]
-    float standEyeHeight = 1.7f;
+    private float standEyeHeight = 1.7f;
 
     [SerializeField]
-    float crouchEyeHeight = 0.9f;
+    private float crouchEyeHeight = 0.9f;
 
     [SerializeField]
-    float crouchTime = 0.2f;
+    private float crouchTime = 0.2f;
 
     [Tooltip("Sprinting while moving cancels toggled crouch.")]
     [SerializeField]
-    bool sprintCancelsToggle = true;
+    private bool sprintCancelsToggle = true;
 
     [SerializeField]
-    LayerMask obstructionMask = ~0;
+    private LayerMask obstructionMask = ~0;
 
     [Header("Zoom")]
     [SerializeField]
-    bool zoomEnabled = true;
+    private bool zoomEnabled = true;
 
     [Tooltip("Auto-found under CameraTarget if empty.")]
     [SerializeField]
-    CinemachineCamera vcam;
+    private CinemachineCamera vcam;
 
     [Tooltip("Vertical FOV when fully zoomed (lower = closer).")]
     [SerializeField, Range(5f, 90f)]
-    float zoomFov = 30f;
+    private float zoomFov = 30f;
 
     [SerializeField]
-    float zoomInTime = 0.25f;
+    private float zoomInTime = 0.25f;
 
     [SerializeField]
-    float zoomOutTime = 0.2f;
+    private float zoomOutTime = 0.2f;
 
     [Tooltip("Easing over 0..1. X = progress, Y = zoom amount.")]
     [SerializeField]
-    AnimationCurve zoomCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+    private AnimationCurve zoomCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
     [Tooltip("Look sensitivity multiplier at full zoom.")]
     [SerializeField, Range(0.1f, 1f)]
-    float zoomSensitivity = 0.5f;
+    private float zoomSensitivity = 0.5f;
 
     [Header("View Bob")]
     [SerializeField]
-    bool bobEnabled = true;
+    private bool bobEnabled = true;
 
     [Tooltip("Cycles/sec at walk speed.")]
     [SerializeField]
-    float bobFrequency = 1.8f;
+    private float bobFrequency = 1.8f;
 
     [SerializeField]
-    float bobAmplitudeY = 0.05f;
+    private float bobAmplitudeY = 0.05f;
 
     [SerializeField]
-    float bobAmplitudeX = 0.03f;
+    private float bobAmplitudeX = 0.03f;
 
     [Tooltip("Amplitude multiplier while crouched.")]
     [SerializeField, Range(0f, 1f)]
-    float crouchBobMultiplier = 0.6f;
+    private float crouchBobMultiplier = 0.6f;
 
     [Tooltip("Fade in/out speed of the bob.")]
     [SerializeField]
-    float bobBlendSpeed = 8f;
+    private float bobBlendSpeed = 8f;
 
-    CharacterController _cc;
-    float _standHeight,
+    private CharacterController _cc;
+    private float _standHeight,
         _feetOffset; // feet Y relative to transform
-    float _pitch,
+    private float _pitch,
         _headYaw; // headYaw is world-space
-    float _crouchT; // 0 stand .. 1 crouched
-    bool _wantsCrouch,
+    private float _crouchT; // 0 stand .. 1 crouched
+    private bool _wantsCrouch,
         _crouchToggled; // C-key latch
-    Vector3 _horizVel;
-    float _vertVel;
-    bool _grounded;
-    float _bobPhase,
+    private Vector3 _horizVel;
+    private float _vertVel;
+    private bool _grounded;
+    private float _bobPhase,
         _bobWeight;
-    float _baseFov,
+    private float _baseFov,
         _zoomT,
         _zoomEased; // _zoomT linear 0..1, _zoomEased after curve
-    bool _zoomReady;
-    bool _sprinting,
+    private bool _zoomReady;
+    private bool _sprinting,
         _exhausted;
-    float _regenTimer,
+    private float _regenTimer,
         _sprintBlend;
-    readonly Collider[] _hits = new Collider[8];
+    private readonly Collider[] _hits = new Collider[8];
 
     public bool IsGrounded => _grounded;
     public bool IsCrouching => _wantsCrouch;
@@ -188,7 +200,7 @@ public class FirstPersonController : MonoBehaviour
     public float Stamina => stamina;
     public float StaminaNormalized => maxStamina > 0f ? stamina / maxStamina : 1f;
 
-    void Awake()
+    private void Awake()
     {
         _cc = GetComponent<CharacterController>();
         if (cameraTarget == null)
@@ -213,7 +225,7 @@ public class FirstPersonController : MonoBehaviour
             Debug.LogWarning($"{name}: no CinemachineCamera found. Zoom disabled.", this);
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
         // Restore FOV so the camera isn't left zoomed.
         _zoomT = _zoomEased = 0f;
@@ -222,7 +234,7 @@ public class FirstPersonController : MonoBehaviour
             vcam.Lens.FieldOfView = _baseFov;
     }
 
-    void Update()
+    private void Update()
     {
         var input = InputManager.Instance;
         if (input == null)
@@ -244,7 +256,7 @@ public class FirstPersonController : MonoBehaviour
         UpdateCamera(dt);
     }
 
-    void UpdateZoom(bool held, float dt)
+    private void UpdateZoom(bool held, float dt)
     {
         if (!_zoomReady || vcam == null)
             return;
@@ -265,7 +277,7 @@ public class FirstPersonController : MonoBehaviour
             vcam.Lens.FieldOfView = fov;
     }
 
-    void UpdateLook(Vector2 delta, bool moving, float dt)
+    private void UpdateLook(Vector2 delta, bool moving, float dt)
     {
         delta *= sensitivity * Mathf.Lerp(1f, zoomSensitivity, _zoomEased); // slower aim when zoomed
         _pitch = Mathf.Clamp(_pitch + (invertY ? delta.y : -delta.y), -pitchLimit, pitchLimit);
@@ -287,7 +299,7 @@ public class FirstPersonController : MonoBehaviour
         );
     }
 
-    void UpdateCrouch(bool held, bool togglePressed, bool sprintIntent, float dt)
+    private void UpdateCrouch(bool held, bool togglePressed, bool sprintIntent, float dt)
     {
         if (togglePressed)
             _crouchToggled = !_crouchToggled;
@@ -311,7 +323,7 @@ public class FirstPersonController : MonoBehaviour
         _cc.center = new Vector3(0f, _feetOffset + h * 0.5f, 0f); // keep feet planted
     }
 
-    bool CanStand()
+    private bool CanStand()
     {
         float r = _cc.radius * 0.95f;
         Vector3 p = transform.position + Vector3.up * (_feetOffset + _standHeight - _cc.radius);
@@ -328,7 +340,7 @@ public class FirstPersonController : MonoBehaviour
         return true;
     }
 
-    void UpdateSprint(bool held, Vector2 move, float dt)
+    private void UpdateSprint(bool held, Vector2 move, float dt)
     {
         maxStamina = Mathf.Max(0f, maxStamina);
         stamina = Mathf.Clamp(stamina, 0f, maxStamina);
@@ -369,7 +381,7 @@ public class FirstPersonController : MonoBehaviour
         _sprintBlend = Mathf.MoveTowards(_sprintBlend, _sprinting ? 1f : 0f, bobBlendSpeed * dt);
     }
 
-    void UpdateMovement(Vector2 move, bool jump, float dt)
+    private void UpdateMovement(Vector2 move, bool jump, float dt)
     {
         Vector3 wish = Quaternion.Euler(0f, _headYaw, 0f) * new Vector3(move.x, 0f, move.y);
         if (wish.sqrMagnitude > 1f)
@@ -392,7 +404,7 @@ public class FirstPersonController : MonoBehaviour
             _vertVel = 0f;
     }
 
-    void UpdateCamera(float dt)
+    private void UpdateCamera(float dt)
     {
         float s = Mathf.SmoothStep(0f, 1f, _crouchT);
         float eye = Mathf.Lerp(standEyeHeight, crouchEyeHeight, s);
@@ -425,7 +437,7 @@ public class FirstPersonController : MonoBehaviour
         cameraTarget.localPosition = basePos + bob;
     }
 
-    void OnValidate()
+    private void OnValidate()
     {
         sprintSpeed = Mathf.Max(sprintSpeed, walkSpeed);
         maxStamina = Mathf.Max(0f, maxStamina);

@@ -167,7 +167,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cfabb0440166ab443bba8876756fdfa9, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Shadow
   m_EffectColor: {r: 0, g: 0, b: 0, a: 0.5}
   m_EffectDistance: {x: 1, y: -1}
@@ -182,7 +182,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -265,7 +265,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.CanvasScaler
   m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
@@ -515,7 +515,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9ac27f85fc3459547a6eb952d0104bc7, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: AutomationGame::ResourceSpot
   gatherInterval: 0.4
 --- !u!1001 &100233647
@@ -577,6 +577,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 3476640955920598647, guid: 7626e08f4fcee4d43b6c17710170014c, type: 3}
       insertIndex: -1
       addedObject: {fileID: 100233650}
+    - targetCorrespondingSourceObject: {fileID: 3476640955920598647, guid: 7626e08f4fcee4d43b6c17710170014c, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 100233654}
   m_SourcePrefab: {fileID: 100100000, guid: 7626e08f4fcee4d43b6c17710170014c, type: 3}
 --- !u!1 &100233648 stripped
 GameObject:
@@ -598,7 +601,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9ca7d8abd68701e46a7a2edb34be7725, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: AutomationGame::FactoryPlayer
   viewCamera: {fileID: 100233649}
   machine: {fileID: 1015955593}
@@ -609,6 +612,35 @@ MonoBehaviour:
   promptText: {fileID: 1721906929}
   oreCapacity: 10
   interactionRange: 4
+--- !u!114 &100233654
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 100233648}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac570bb8d6284bc489ec2abe79212a4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomationGame::BuildController
+  viewCamera: {fileID: 100233649}
+  playerTransform: {fileID: 633312708}
+  maxBuildDistance: 30
+  conveyorHeightOffset: 1
+  minConveyorLength: 1
+  conveyorRadius: 0.5
+  conveyorSides: 8
+  conveyorSegmentsPerUnit: 4
+  machineMaterial: {fileID: 0}
+  binMaterial: {fileID: 0}
+  oreMaterial: {fileID: 0}
+  yellowMaterial: {fileID: 0}
+  greenMaterial: {fileID: 0}
+  redMaterial: {fileID: 0}
+  ghostMaterial: {fileID: 0}
+  ingotPrefab: {fileID: 0}
+  sidebarOnRight: 1
 --- !u!1 &148826340
 GameObject:
   m_ObjectHideFlags: 0
@@ -1098,6 +1130,11 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!4 &633312708 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 9184527616180035414, guid: 7626e08f4fcee4d43b6c17710170014c, type: 3}
+  m_PrefabInstance: {fileID: 100233647}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &729712473
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1228,7 +1265,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9833da32a0db63c4586ac19517ddc3ff, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: AutomationGame::SubmissionBin
   targetCount: 10
   counterLabel: {fileID: 1342286570}
@@ -1395,7 +1432,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d54f2241cec50894d9a36e77b651ab04, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: AutomationGame::FactoryMachine
   outputBelt: {fileID: 1201760797}
   ingotPrefab: {fileID: 1569788509712831468, guid: a50145ba71b0d8042a31506e4068a281, type: 3}
@@ -1473,7 +1510,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 011a7cd425ea0dd468a9dec75bbe107f, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Conveyor
   ConveyerSpline: {fileID: 1201760802}
   speed: 5
@@ -3019,7 +3056,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d199f6b36dffa454d98ee7a1e6e7480b, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FPSControlScrip
   pControl: {fileID: 0}
 --- !u!1 &1721906926
@@ -3070,7 +3107,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cfabb0440166ab443bba8876756fdfa9, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Shadow
   m_EffectColor: {r: 0, g: 0, b: 0, a: 0.5}
   m_EffectDistance: {x: 1, y: -1}
@@ -3085,7 +3122,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -3404,7 +3441,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -3491,7 +3528,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cfabb0440166ab443bba8876756fdfa9, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Shadow
   m_EffectColor: {r: 0, g: 0, b: 0, a: 0.5}
   m_EffectDistance: {x: 1, y: -1}
@@ -3506,7 +3543,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5f7201a12d95ffc409449d95f23cf332, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Text
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}

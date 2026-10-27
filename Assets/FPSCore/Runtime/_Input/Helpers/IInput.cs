@@ -1,15 +1,19 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+/// <summary>
+/// Static Class Input Helper
+/// - This is where Input Mapping Encapsulation live such as <see cref="GrabPressed">
+/// </summary>
 public static class IInput
 {
     /// <summary>Hotbar keys 1..9.</summary>
-    public const int HotbarKeys = 9;
+    public const int HOTBAR_KEYS = 9;
 
-    const string HotbarPrefix = "Hotbar";
+    private const string HOTBAR_PREFIX = "Hotbar";
 
-    static InputManager _owner; // the manager the actions below came from
-    static InputAction _grab;
+    private static InputManager _owner; // the manager the actions below came from
+    private static InputAction _grab;
 
     //Add more here
     //_rotate,
@@ -25,7 +29,7 @@ public static class IInput
     // _boxRotate,
     // _priceAdjust;
     //...
-    static readonly InputAction[] _hotbar = new InputAction[HotbarKeys];
+    static readonly InputAction[] _hotbar = new InputAction[HOTBAR_KEYS];
 
     // Reset statics for "Enter Play Mode without Domain Reload".
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -60,7 +64,7 @@ public static class IInput
         // ...
 
         for (int i = 0; i < _hotbar.Length; i++)
-            _hotbar[i] = im.GetExtraAction(HotbarPrefix + (i + 1), "<Keyboard>/" + (i + 1));
+            _hotbar[i] = im.GetExtraAction(HOTBAR_PREFIX + (i + 1), "<Keyboard>/" + (i + 1));
 
         _owner = im;
         return true;

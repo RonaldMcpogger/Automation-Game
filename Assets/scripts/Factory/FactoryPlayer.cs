@@ -16,6 +16,12 @@ public class FactoryPlayer : MonoBehaviour
 
     public int OreCount { get; private set; }
 
+    private void Awake()
+    {
+        if (!TryGetComponent<BuildController>(out _))
+            gameObject.AddComponent<BuildController>();
+    }
+
     public bool TryCollectOre()
     {
         if (OreCount >= oreCapacity)
@@ -58,12 +64,20 @@ public class FactoryPlayer : MonoBehaviour
             machineText.text = "SMELTER  |  " + machine.Status;
         if (promptText != null)
         {
-            string key = input != null ? input.GetLabel(PromptAction.Interact) : "E";
-            promptText.text = input != null && !input.CursorLocked
-                ? "Click to resume  |  WASD move  |  Shift sprint  |  Space jump"
-                : station != null && station.isActiveAndEnabled
-                    ? station.GetPrompt(this).Replace("{key}", key ?? "E")
-                    : "WASD move  |  Shift sprint  |  Space jump  |  Esc release cursor";
+            var build = GetComponent<BuildController>();
+            if (build != null && build.IsBuildModeActive)
+            {
+                promptText.text = "[B] Exit Build Mode  |  [1-4] Select Building  |  [LMB] Place";
+            }
+            else
+            {
+                string key = input != null ? input.GetLabel(PromptAction.Interact) : "E";
+                promptText.text = input != null && !input.CursorLocked
+                    ? "Click to resume  |  WASD move  |  Shift sprint  |  Space jump"
+                    : station != null && station.isActiveAndEnabled
+                        ? station.GetPrompt(this).Replace("{key}", key ?? "E")
+                        : "WASD move  |  [B] Build Mode  |  Shift sprint  |  Space jump";
+            }
         }
     }
 }

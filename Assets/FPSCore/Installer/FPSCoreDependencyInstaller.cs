@@ -6,19 +6,25 @@ using UnityEditor.PackageManager;
 using UnityEditor.PackageManager.Requests;
 using UnityEngine;
 
+/// <summary>
+/// Dependencies Installer For FPS Core
+/// - Auto Installs/Updates the ff dependencies:
+///     - Cinemachine 3.1.7
+///     - InputSystem 1.19.0
+/// </summary>
 [InitializeOnLoad]
 static class FpsDependencyInstaller
 {
     // name, minimum version, version to install
-    static readonly (string name, string min, string install)[] Dependencies =
+    private static readonly (string name, string min, string install)[] Dependencies =
     {
         ("com.unity.cinemachine", "3.1.7", "3.1.7"),
         ("com.unity.inputsystem", "1.19.0", "1.19.0"),
     };
 
-    static ListRequest _list;
-    static AddRequest _add;
-    static Queue<string> _toInstall;
+    private static ListRequest _list;
+    private static AddRequest _add;
+    private static Queue<string> _toInstall;
 
     static FpsDependencyInstaller()
     {
@@ -28,14 +34,14 @@ static class FpsDependencyInstaller
     }
 
     [MenuItem("Tools/FPS Core/Install Dependencies")]
-    static void Run()
+    private static void Run()
     {
         Debug.Log("FPSCore: checking dependencies...");
         _list = Client.List(offlineMode: false, includeIndirectDependencies: true);
         EditorApplication.update += OnList;
     }
 
-    static void OnList()
+    private static void OnList()
     {
         if (!_list.IsCompleted)
             return;
@@ -60,7 +66,7 @@ static class FpsDependencyInstaller
     }
 
     // Packages are added one at a time; the Package Manager rejects overlapping requests.
-    static void InstallNext()
+    private static void InstallNext()
     {
         if (_toInstall.Count == 0)
             return;
@@ -70,7 +76,7 @@ static class FpsDependencyInstaller
         EditorApplication.update += OnAdd;
     }
 
-    static void OnAdd()
+    private static void OnAdd()
     {
         if (!_add.IsCompleted)
             return;
@@ -84,7 +90,7 @@ static class FpsDependencyInstaller
         InstallNext();
     }
 
-    static bool IsAtLeast(string have, string min)
+    private static bool IsAtLeast(string have, string min)
     {
         try
         {
