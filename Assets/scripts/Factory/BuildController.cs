@@ -58,11 +58,13 @@ public class BuildController : MonoBehaviour
     [Tooltip("The start/end direction must differ from the direct route by at least this angle before a bend is added.")]
     [Range(0f, 89f)] public float minCurveAngle = 8f;
     [Tooltip("Directions that require a sharper turn than this are rejected and produce a straight belt.")]
-    [Range(5f, 170f)] public float maxCurveAngle = 75f;
+    [Range(5f, 180f)] public float maxCurveAngle = 180f;
     [Tooltip("Endpoints farther apart vertically than this stay straight, preventing impractically steep bends.")]
     [Min(0f)] public float maxCurveHeightDifference = 2f;
     [Tooltip("Length of each Bezier control handle as a fraction of the endpoint distance.")]
     [Range(0.1f, 0.5f)] public float curveHandleLengthRatio = 0.33f;
+    [Tooltip("Blocks endpoints this close to directly behind the start direction. Place slightly left or right of this zone to make a safe C-shaped bend.")]
+    [Range(0f, 45f)] public float rearPlacementDeadZone = 12f;
 
     [Header("Materials (Optional overrides)")]
     public Material machineMaterial;
@@ -90,6 +92,8 @@ public class BuildController : MonoBehaviour
     private FactoryMachine activeStartMachine;
     // Retains the start attachment so the final belt and its preview use the same tangent direction.
     private SnapTarget conveyorStartSnap;
+    // Direction captured when the first point is placed; free belts leave their start in this direction.
+    private Vector3 conveyorStartDirection;
     private SnapTarget currentSnap;
 
     // Ghost preview objects
@@ -192,6 +196,7 @@ public class BuildController : MonoBehaviour
                     conveyorHasStart = false;
                     activeStartMachine = null;
                     conveyorStartSnap = default;
+                    conveyorStartDirection = Vector3.zero;
                 }
                 else
                 {
@@ -254,6 +259,7 @@ public class BuildController : MonoBehaviour
         conveyorHasStart = false;
         activeStartMachine = null;
         conveyorStartSnap = default;
+        conveyorStartDirection = Vector3.zero;
         UpdatePreviewMesh();
     }
 
@@ -316,6 +322,7 @@ public class BuildController : MonoBehaviour
             conveyorHasStart = false;
             activeStartMachine = null;
             conveyorStartSnap = default;
+            conveyorStartDirection = Vector3.zero;
             return;
         }
 
@@ -346,6 +353,7 @@ public class BuildController : MonoBehaviour
                 conveyorStartPoint = snapped ? snap.position : hit.point + Vector3.up * conveyorHeightOffset;
                 activeStartMachine = snapped ? snap.machine : null;
                 conveyorStartSnap = snapped ? snap : default;
+                conveyorStartDirection = GetInitialConveyorDirection(conveyorStartSnap);
                 conveyorHasStart = true;
             }
             else
@@ -357,17 +365,24 @@ public class BuildController : MonoBehaviour
                 if (!snapped && Mathf.Abs(conveyorStartPoint.y - endPoint.y) < 0.25f)
                     endPoint.y = conveyorStartPoint.y;
 
+                // A perfectly rear-facing cubic folds back over its own control points and twists the mesh.
+                // Keep the first point active, but require the player to move the endpoint slightly left or right.
+                if (IsEndpointDirectlyBehindStart(conveyorStartPoint, endPoint, conveyorStartDirection))
+                    return;
+
                 if (Vector3.Distance(conveyorStartPoint, endPoint) >= minConveyorLength)
                 {
                     var conveyor = BuildConveyorBelt(
                         conveyorStartPoint,
                         endPoint,
                         conveyorStartSnap,
-                        snapped ? snap : default);
+                        snapped ? snap : default,
+                        conveyorStartDirection);
 
                     conveyorHasStart = false;
                     activeStartMachine = null;
                     conveyorStartSnap = default;
+                    conveyorStartDirection = Vector3.zero;
                 }
             }
         }
@@ -556,14 +571,15 @@ public class BuildController : MonoBehaviour
 
                 float dist = Vector3.Distance(conveyorStartPoint, endPoint);
 
-                if (dist >= 0.5f)
+                if (dist >= 0.5f && !IsEndpointDirectlyBehindStart(
+                    conveyorStartPoint, endPoint, conveyorStartDirection))
                 {
                     previewSplineObj.SetActive(true);
                     var spline = previewSplineContainer.Spline;
                     spline.Clear();
 
                     ConfigureConveyorSpline(spline, conveyorStartPoint, endPoint, conveyorStartSnap,
-                        snapped ? currentSnap : default);
+                        snapped ? currentSnap : default, conveyorStartDirection);
                     RebuildSquareConveyorMesh(previewSplineContainer, previewSplineMesh);
                 }
                 else
@@ -622,6 +638,7 @@ public class BuildController : MonoBehaviour
         conveyorHasStart = false;
         activeStartMachine = null;
         conveyorStartSnap = default;
+        conveyorStartDirection = Vector3.zero;
         currentSnap = default;
 
         if (previewRoot != null)
@@ -642,7 +659,7 @@ public class BuildController : MonoBehaviour
     /// </summary>
     public Conveyor BuildConveyorBelt(Vector3 start, Vector3 end)
     {
-        return BuildConveyorBelt(start, end, default, default);
+        return BuildConveyorBelt(start, end, default, default, Vector3.zero);
     }
 
     /// <summary>
@@ -651,7 +668,8 @@ public class BuildController : MonoBehaviour
     /// attached endpoints; (3) extrude the flat square belt along that spline; (4) assign the
     /// collider; and (5) configure item movement to follow the spline's top-facing up direction.
     /// </summary>
-    private Conveyor BuildConveyorBelt(Vector3 start, Vector3 end, SnapTarget startSnap, SnapTarget endSnap)
+    private Conveyor BuildConveyorBelt(Vector3 start, Vector3 end, SnapTarget startSnap,
+        SnapTarget endSnap, Vector3 startDirectionOverride)
     {
         // 1. The container remains unrotated so spline up stays world-up on a level belt.
         var beltObj = new GameObject("Conveyor Belt");
@@ -660,7 +678,7 @@ public class BuildController : MonoBehaviour
 
         var container = beltObj.AddComponent<SplineContainer>();
         var spline = container.Spline;
-        ConfigureConveyorSpline(spline, start, end, startSnap, endSnap);
+        ConfigureConveyorSpline(spline, start, end, startSnap, endSnap, startDirectionOverride);
 
         var filter = beltObj.AddComponent<MeshFilter>();
         var renderer = beltObj.AddComponent<MeshRenderer>();
@@ -672,10 +690,6 @@ public class BuildController : MonoBehaviour
         // 3. Generate the visual mesh from the same spline that moves objects.
         var mesh = new Mesh { name = "Square Conveyor Mesh" };
         filter.sharedMesh = mesh;
-        RebuildSquareConveyorMesh(container, mesh);
-
-        // 4. The collider exactly matches the generated curved mesh.
-        collider.sharedMesh = mesh;
 
         var conveyor = beltObj.AddComponent<Conveyor>();
         conveyor.ConveyerSpline = container;
@@ -686,8 +700,17 @@ public class BuildController : MonoBehaviour
         conveyor.snapRotation = true;
         conveyor.rotationSpeed = 720f;
         conveyor.minimumSpacing = 0.8f;
+        conveyor.meshRadius = conveyorRadius;
+        conveyor.meshSegmentsPerUnit = conveyorSegmentsPerUnit;
 
         ConnectConveyorEndpoints(conveyor, start, end, startSnap, endSnap);
+
+        // Do not cap linked belts: the shared endpoint remains visually seamless.
+        RebuildSquareConveyorMesh(container, mesh,
+            capEnds: !conveyor.HasInputConnection && !conveyor.HasOutputConnection);
+
+        // 4. The collider exactly matches the generated curved mesh.
+        collider.sharedMesh = mesh;
 
         return conveyor;
     }
@@ -700,7 +723,7 @@ public class BuildController : MonoBehaviour
     /// each conveyor container is intentionally unrotated.
     /// </summary>
     private void ConfigureConveyorSpline(Spline spline, Vector3 start, Vector3 end,
-        SnapTarget startSnap, SnapTarget endSnap)
+        SnapTarget startSnap, SnapTarget endSnap, Vector3 startDirectionOverride)
     {
         spline.Clear(); // clean up existing spline
 
@@ -710,7 +733,9 @@ public class BuildController : MonoBehaviour
             return;
 
         directDirection /= directLength;
-        Vector3 startDirection = GetAttachmentDirection(startSnap, true, directDirection);
+        Vector3 startDirection = startDirectionOverride.sqrMagnitude > 0.0001f
+            ? startDirectionOverride.normalized
+            : GetAttachmentDirection(startSnap, true, directDirection);
         Vector3 endDirection = GetAttachmentDirection(endSnap, false, directDirection);
 
         // Accept a curve only when it is long enough, not too steep, and both endpoint turns are safe.
@@ -722,6 +747,15 @@ public class BuildController : MonoBehaviour
             && Mathf.Abs(end.y - start.y) <= maxCurveHeightDifference
             && startAngle <= maxCurveAngle
             && endAngle <= maxCurveAngle;
+
+        // A free endpoint directly behind the start would otherwise retrace itself. Bias its arrival
+        // direction to one side, creating a broad C-shaped turn while retaining the captured forward exit.
+        bool endIsFree = endSnap.machine == null && endSnap.receiver == null && endSnap.conveyor == null;
+        if (curveIsAcceptable && endIsFree && startAngle >= 135f)
+        {
+            Vector3 side = Vector3.Cross(Vector3.up, startDirection).normalized;
+            endDirection = (endDirection + side * 0.45f).normalized;
+        }
 
         float handleLength = needsCurve && curveIsAcceptable
             ? directLength * curveHandleLengthRatio
@@ -758,16 +792,53 @@ public class BuildController : MonoBehaviour
     }
 
     /// <summary>
+    /// Captures the outgoing direction at the moment the player sets the first point. Connected
+    /// starts inherit their source direction; a free start uses the player's horizontal forward axis.
+    /// This is what makes the second point steer the belt left, right, or into a broad back-turn.
+    /// </summary>
+    private Vector3 GetInitialConveyorDirection(SnapTarget startSnap)
+    {
+        Vector3 playerForward = playerTransform != null ? playerTransform.forward : Vector3.forward;
+        playerForward.y = 0f;
+        if (playerForward.sqrMagnitude < 0.0001f)
+            playerForward = Vector3.forward;
+
+        return GetAttachmentDirection(startSnap, true, playerForward.normalized);
+    }
+
+    /// <summary>
+    /// Rejects only the narrow cone directly behind the first point. A cubic Bezier with start and
+    /// end in exactly opposite directions can overlap itself, which causes the square extrusion to
+    /// flip or twist. Endpoints just outside this cone remain valid and make the intended C-bend.
+    /// </summary>
+    private bool IsEndpointDirectlyBehindStart(Vector3 start, Vector3 end, Vector3 startDirection)
+    {
+        Vector3 planarDirection = startDirection;
+        planarDirection.y = 0f;
+        Vector3 planarToEnd = end - start;
+        planarToEnd.y = 0f;
+
+        if (planarDirection.sqrMagnitude < 0.0001f || planarToEnd.sqrMagnitude < 0.0001f)
+            return false;
+
+        float angle = Vector3.Angle(planarDirection, planarToEnd);
+        return angle >= 180f - rearPlacementDeadZone;
+    }
+
+    /// <summary>
     /// Rebuilds the square-profile mesh after the spline is configured. The square template is flat
     /// relative to spline up, so Conveyor continues to place carried items above its upper face.
     /// </summary>
-    private void RebuildSquareConveyorMesh(SplineContainer container, Mesh mesh)
+    private void RebuildSquareConveyorMesh(SplineContainer container, Mesh mesh, bool capEnds = true,
+        float radius = -1f, float segmentsPerUnit = -1f)
     {
+        radius = radius > 0f ? radius : conveyorRadius;
+        segmentsPerUnit = segmentsPerUnit > 0f ? segmentsPerUnit : conveyorSegmentsPerUnit;
         int segments = Mathf.Max(2,
-            Mathf.CeilToInt(container.CalculateLength() * conveyorSegmentsPerUnit));
+            Mathf.CeilToInt(container.CalculateLength() * segmentsPerUnit));
 
         // Square spans -0.5 to +0.5, so multiply by two to preserve the existing belt width.
-        SplineMesh.Extrude(container.Spline, mesh, conveyorRadius * 2f, segments, true, new Square());
+        SplineMesh.Extrude(container.Spline, mesh, radius * 2f, segments, capEnds, new Square());
     }
 
     public FactoryMachine BuildSmelter(Vector3 groundPoint, Quaternion rotation)
@@ -910,6 +981,7 @@ public class BuildController : MonoBehaviour
         {
             sourceConveyor.outputConveyor = conveyor;
             conveyor.inputConveyor = sourceConveyor;
+            RefreshConveyorMeshCaps(sourceConveyor);
         }
 
         // 2. Claim the destination: either a receiver input or an existing belt's start endpoint.
@@ -937,7 +1009,27 @@ public class BuildController : MonoBehaviour
         {
             conveyor.outputConveyor = targetConveyor;
             targetConveyor.inputConveyor = conveyor;
+            RefreshConveyorMeshCaps(targetConveyor);
         }
+    }
+
+    /// <summary>
+    /// Removes the generated end caps from an already-placed conveyor after it gains a belt link.
+    /// Both halves of the junction then share an open spline endpoint instead of overlapping faces.
+    /// </summary>
+    private void RefreshConveyorMeshCaps(Conveyor conveyor)
+    {
+        if (conveyor == null || conveyor.ConveyerSpline == null
+            || !conveyor.TryGetComponent<MeshFilter>(out var filter) || filter.sharedMesh == null)
+            return;
+
+        RebuildSquareConveyorMesh(conveyor.ConveyerSpline, filter.sharedMesh,
+            capEnds: !conveyor.HasInputConnection && !conveyor.HasOutputConnection,
+            radius: conveyor.meshRadius,
+            segmentsPerUnit: conveyor.meshSegmentsPerUnit);
+
+        if (conveyor.TryGetComponent<MeshCollider>(out var collider))
+            collider.sharedMesh = filter.sharedMesh;
     }
 
     private static GameObject CreateChildCube(string name, Transform parent, Vector3 localPos, Vector3 localScale, Material mat)

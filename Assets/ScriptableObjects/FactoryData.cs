@@ -1,16 +1,10 @@
 using UnityEngine;
-
-public class FactoryData : MonoBehaviour
+[CreateAssetMenu(fileName = "newFactoryData", menuName = "Automation Game /Factory Data")]
+public class FactoryData : ScriptableObject
 {
     // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
+    public GameObject FactoryModel;
+    public string FactoryName;
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
+    // figure out how to make a list of required resourves and all and how
 }

@@ -37,6 +37,10 @@ public class Conveyor : MonoBehaviour
     public bool HasInputConnection => inputMachine != null || inputConveyor != null;
     public bool HasOutputConnection => outputConveyor != null || outputReceiver != null;
 
+    // Stored when spawned so an existing belt can be rebuilt without changing its chosen width.
+    [HideInInspector] public float meshRadius;
+    [HideInInspector] public float meshSegmentsPerUnit;
+
     private readonly Dictionary<Rigidbody, Attachment> attachedBodies = new();
     private readonly Dictionary<Rigidbody, float> recentlyReleased = new();
     private readonly List<Rigidbody> bodyBuffer = new();
