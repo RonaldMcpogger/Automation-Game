@@ -365,11 +365,6 @@ public class BuildController : MonoBehaviour
                         conveyorStartSnap,
                         snapped ? snap : default);
 
-                    if (activeStartMachine != null)
-                        activeStartMachine.outputBelt = conveyor;
-                    if (snapped && snap.receiver != null)
-                        conveyor.outputReceiver = snap.receiver;
-
                     conveyorHasStart = false;
                     activeStartMachine = null;
                     conveyorStartSnap = default;
@@ -440,7 +435,8 @@ public class BuildController : MonoBehaviour
                 float dist = Vector3.Distance(hitPoint, outputPort);
                 float centerDist = Vector3.Distance(hitPoint, machine.transform.position);
 
-                if (dist < bestDist || centerDist < 2.0f)
+                // A factory output can feed only one belt.
+                if (machine.outputBelt == null && (dist < bestDist || centerDist < 2.0f))
                 {
                     bestDist = Mathf.Min(dist, centerDist);
                     snap.position = outputPort;
@@ -453,7 +449,8 @@ public class BuildController : MonoBehaviour
             // 2. Existing Conveyor end point (belt-to-belt chaining)
             foreach (var conveyor in FindObjectsByType<Conveyor>())
             {
-                if (conveyor.ConveyerSpline != null && conveyor.ConveyerSpline.Spline != null)
+                if (!conveyor.HasOutputConnection
+                    && conveyor.ConveyerSpline != null && conveyor.ConveyerSpline.Spline != null)
                 {
                     Vector3 endPos = conveyor.ConveyerSpline.EvaluatePosition(1f);
                     float dist = Vector3.Distance(hitPoint, endPos);
@@ -478,7 +475,8 @@ public class BuildController : MonoBehaviour
                 float dist = Vector3.Distance(hitPoint, intake);
                 float centerDist = Vector3.Distance(hitPoint, bin.transform.position);
 
-                if (dist < bestDist || centerDist < 2.5f)
+                // A receiver intake can accept only one belt.
+                if (!bin.HasInputConnection && (dist < bestDist || centerDist < 2.5f))
                 {
                     bestDist = Mathf.Min(dist, centerDist);
                     snap.position = intake;
@@ -491,7 +489,8 @@ public class BuildController : MonoBehaviour
             // 2. Existing Conveyor start point
             foreach (var conveyor in FindObjectsByType<Conveyor>())
             {
-                if (conveyor.ConveyerSpline != null && conveyor.ConveyerSpline.Spline != null)
+                if (!conveyor.HasInputConnection
+                    && conveyor.ConveyerSpline != null && conveyor.ConveyerSpline.Spline != null)
                 {
                     Vector3 startPos = conveyor.StartPosition;
                     float dist = Vector3.Distance(hitPoint, startPos);
@@ -688,7 +687,7 @@ public class BuildController : MonoBehaviour
         conveyor.rotationSpeed = 720f;
         conveyor.minimumSpacing = 0.8f;
 
-        ConnectConveyorEndpoints(conveyor, start, end);
+        ConnectConveyorEndpoints(conveyor, start, end, startSnap, endSnap);
 
         return conveyor;
     }
@@ -806,9 +805,10 @@ public class BuildController : MonoBehaviour
         Vector3 front = center + (rotation * Vector3.forward) * 1.8f;
         foreach (var conveyor in FindObjectsByType<Conveyor>())
         {
-            if (Vector3.Distance(conveyor.StartPosition, front) < 2.5f)
+            if (!conveyor.HasInputConnection && Vector3.Distance(conveyor.StartPosition, front) < 2.5f)
             {
                 machine.outputBelt = conveyor;
+                conveyor.inputMachine = machine;
                 break;
             }
         }
@@ -844,9 +844,12 @@ public class BuildController : MonoBehaviour
             if (conveyor.ConveyerSpline != null)
             {
                 Vector3 endPos = conveyor.ConveyerSpline.EvaluatePosition(1f);
-                if (Vector3.Distance(endPos, groundPoint + Vector3.up * 1.0f) < 3.5f)
+                if (!bin.HasInputConnection && !conveyor.HasOutputConnection
+                    && Vector3.Distance(endPos, groundPoint + Vector3.up * 1.0f) < 3.5f)
                 {
                     conveyor.outputReceiver = bin;
+                    bin.inputConveyor = conveyor;
+                    break;
                 }
             }
         }
@@ -872,25 +875,68 @@ public class BuildController : MonoBehaviour
         return spot;
     }
 
-    private void ConnectConveyorEndpoints(Conveyor conveyor, Vector3 start, Vector3 end)
+    /// <summary>
+    /// Claims free endpoint ports for a new conveyor. Explicit placement snaps are preferred;
+    /// the proximity fallback keeps programmatic construction working. Every assignment is made
+    /// on both sides of the connection, which prevents later belts from reusing that port.
+    /// </summary>
+    private void ConnectConveyorEndpoints(Conveyor conveyor, Vector3 start, Vector3 end,
+        SnapTarget startSnap, SnapTarget endSnap)
     {
-        foreach (var machine in FindObjectsByType<FactoryMachine>())
+        // 1. Claim the source: either a factory output or an existing belt's output endpoint.
+        FactoryMachine sourceMachine = startSnap.machine;
+        Conveyor sourceConveyor = startSnap.conveyor;
+
+        if (sourceMachine == null && sourceConveyor == null)
         {
-            Vector3 outputPort = machine.transform.position + machine.transform.forward * 1.8f;
-            if (Vector3.Distance(outputPort, start) < 2.5f || Vector3.Distance(machine.transform.position, start) < 3.0f)
+            foreach (var machine in FindObjectsByType<FactoryMachine>())
             {
-                machine.outputBelt = conveyor;
-                break;
+                Vector3 outputPort = machine.transform.position + machine.transform.forward * 1.8f;
+                if (machine.outputBelt == null && (Vector3.Distance(outputPort, start) < 2.5f
+                    || Vector3.Distance(machine.transform.position, start) < 3.0f))
+                {
+                    sourceMachine = machine;
+                    break;
+                }
             }
         }
 
-        foreach (var receiver in FindObjectsByType<ConveyorReceiver>())
+        if (sourceMachine != null && sourceMachine.outputBelt == null)
         {
-            if (Vector3.Distance(receiver.transform.position, end) < 3.5f)
+            sourceMachine.outputBelt = conveyor;
+            conveyor.inputMachine = sourceMachine;
+        }
+        else if (sourceConveyor != null && !sourceConveyor.HasOutputConnection)
+        {
+            sourceConveyor.outputConveyor = conveyor;
+            conveyor.inputConveyor = sourceConveyor;
+        }
+
+        // 2. Claim the destination: either a receiver input or an existing belt's start endpoint.
+        ConveyorReceiver targetReceiver = endSnap.receiver;
+        Conveyor targetConveyor = endSnap.conveyor;
+
+        if (targetReceiver == null && targetConveyor == null)
+        {
+            foreach (var receiver in FindObjectsByType<ConveyorReceiver>())
             {
-                conveyor.outputReceiver = receiver;
-                break;
+                if (!receiver.HasInputConnection && Vector3.Distance(receiver.transform.position, end) < 3.5f)
+                {
+                    targetReceiver = receiver;
+                    break;
+                }
             }
+        }
+
+        if (targetReceiver != null && !targetReceiver.HasInputConnection)
+        {
+            conveyor.outputReceiver = targetReceiver;
+            targetReceiver.inputConveyor = conveyor;
+        }
+        else if (targetConveyor != null && !targetConveyor.HasInputConnection)
+        {
+            conveyor.outputConveyor = targetConveyor;
+            targetConveyor.inputConveyor = conveyor;
         }
     }
 

@@ -23,9 +23,19 @@ public class Conveyor : MonoBehaviour
     public bool snapRotation = true;
     [Min(0f)] public float rotationSpeed = 720f;
 
-    [Header("Factory Output (optional)")]
+    [Header("Connections")]
+    [Tooltip("The machine feeding this belt's start. A start point may have only one input connection.")]
+    public FactoryMachine inputMachine;
+    [Tooltip("The belt feeding this belt's start. A start point may have only one input connection.")]
+    public Conveyor inputConveyor;
+    [Tooltip("The belt receiving items from this belt's end. An end point may have only one output connection.")]
+    public Conveyor outputConveyor;
+    [Tooltip("The factory receiver connected to this belt's end. An end point may have only one output connection.")]
     public ConveyorReceiver outputReceiver;
     [Min(0.1f)] public float minimumSpacing = 0.8f;
+
+    public bool HasInputConnection => inputMachine != null || inputConveyor != null;
+    public bool HasOutputConnection => outputConveyor != null || outputReceiver != null;
 
     private readonly Dictionary<Rigidbody, Attachment> attachedBodies = new();
     private readonly Dictionary<Rigidbody, float> recentlyReleased = new();
@@ -101,7 +111,7 @@ public class Conveyor : MonoBehaviour
         bodyBuffer.Clear();
         bodyBuffer.AddRange(attachedBodies.Keys);
         // Move the leading item first so followers can queue behind its new position.
-        bool queueAtOutput = outputReceiver != null && !ConveyerSpline.Spline.Closed && speed >= 0f;
+        bool queueAtOutput = HasOutputConnection && !ConveyerSpline.Spline.Closed && speed >= 0f;
         if (queueAtOutput)
             bodyBuffer.Sort((a, b) => attachedBodies[b].t.CompareTo(attachedBodies[a].t));
         float frontT = float.PositiveInfinity;
@@ -125,7 +135,13 @@ public class Conveyor : MonoBehaviour
             {
                 if (queueAtOutput)
                 {
-                    if (outputReceiver.TryReceive(body))
+                    // A connected belt receives the item at its own start; a receiver consumes it.
+                    if (outputConveyor != null && outputConveyor.TryLoadAtStart(body, attachment.surfaceHeight))
+                    {
+                        attachedBodies.Remove(body);
+                        continue;
+                    }
+                    if (outputReceiver != null && outputReceiver.TryReceive(body))
                     {
                         attachedBodies.Remove(body);
                         continue;
