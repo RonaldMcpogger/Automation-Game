@@ -115,7 +115,6 @@ public class BuildController : MonoBehaviour
     private InputAction buildRotateAction;
     private InputAction buildWidthAction;
     private InputAction buildScrollAction;
-    private readonly InputAction[] buildSelectActions = new InputAction[4];
 
     private void Awake()
     {
@@ -149,9 +148,6 @@ public class BuildController : MonoBehaviour
         buildRotateAction = im.GetExtraAction("BuildRotate", "<Keyboard>/r", "<Gamepad>/rightShoulder");
         buildWidthAction = im.GetExtraAction("BuildWidth", "<Keyboard>/t", "<Gamepad>/leftShoulder");
         buildScrollAction = im.GetExtraVector2Action("BuildScroll", "<Mouse>/scroll");
-
-        for (int i = 0; i < 4; i++)
-            buildSelectActions[i] = im.GetExtraAction($"BuildSelect{i + 1}", $"<Keyboard>/{i + 1}");
     }
 
     private void Update()
@@ -210,15 +206,6 @@ public class BuildController : MonoBehaviour
 
     private void HandleSelectionInput()
     {
-        for (int i = 0; i < 4; i++)
-        {
-            if (buildSelectActions[i] != null && buildSelectActions[i].WasPressedThisFrame())
-            {
-                SetSelectedType((BuildableType)i);
-                return;
-            }
-        }
-
         int hotbar = IInput.HotbarPressedIndex;
         if (hotbar >= 0 && hotbar < 4)
         {
