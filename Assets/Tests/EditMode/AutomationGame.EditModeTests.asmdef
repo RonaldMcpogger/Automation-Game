@@ -1,0 +1,7 @@
+{
+    "name": "AutomationGame.EditModeTests",
+    "references": ["AutomationGame"],
+    "includePlatforms": ["Editor"],
+    "optionalUnityReferences": ["TestAssemblies"],
+    "autoReferenced": false
+}

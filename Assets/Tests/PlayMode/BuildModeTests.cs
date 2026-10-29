@@ -190,8 +190,9 @@ public class BuildModeTests
         // Test custom thickness building
         buildController.conveyorRadius = 0.35f;
         var slimBelt = buildController.BuildConveyorBelt(new Vector3(0, 1, 0), new Vector3(0, 1, 5));
-        var slimExtrude = slimBelt.GetComponent<SplineExtrude>();
-        Assert.That(slimExtrude.Radius, Is.EqualTo(0.35f), "Slim belt extrude radius should match customized value.");
+        var mesh = slimBelt.GetComponent<MeshFilter>().sharedMesh;
+        Assert.That(mesh.bounds.size.x, Is.EqualTo(0.7f).Within(0.02f),
+            "The generated slim belt must be 0.7 metres wide.");
 
         yield return null;
     }

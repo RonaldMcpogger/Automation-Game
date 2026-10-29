@@ -41,6 +41,8 @@ public class BuildController : MonoBehaviour
     [Min(5f)] public float maxBuildDistance = 30f;
     [Min(0.1f)] public float conveyorHeightOffset = 1.0f;
     [Min(0.5f)] public float minConveyorLength = 1.0f;
+    [Tooltip("Buildings stay upright. Steep terrain needs foundations in a later milestone.")]
+    [Range(0f, 45f)] public float maxBuildingSlope = 20f;
 
     [Header("Conveyor Settings")]
     [Tooltip("Radius / thickness of the extruded conveyor belt (default 0.5m; previously 0.83m).")]
@@ -420,6 +422,10 @@ public class BuildController : MonoBehaviour
             if (playerTransform != null && hit.collider.transform.IsChildOf(playerTransform))
                 return false;
 
+            if (SelectedType != BuildableType.ConveyorBelt
+                && Vector3.Angle(Vector3.up, hit.normal) > maxBuildingSlope)
+                return false;
+
             return true;
         }
 
@@ -446,7 +452,7 @@ public class BuildController : MonoBehaviour
             foreach (var machine in FindObjectsByType<FactoryMachine>())
             {
                 Vector3 outputPort = machine.transform.position + machine.transform.forward * 1.8f;
-                outputPort.y = 1.0f;
+                outputPort.y = machine.transform.position.y - 1.2f + conveyorHeightOffset;
                 float dist = Vector3.Distance(hitPoint, outputPort);
                 float centerDist = Vector3.Distance(hitPoint, machine.transform.position);
 
