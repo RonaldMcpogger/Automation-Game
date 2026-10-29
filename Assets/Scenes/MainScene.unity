@@ -750,11 +750,12 @@ MonoBehaviour:
   conveyorSides: 4
   conveyorSegmentsPerUnit: 4
   enableConveyorCurves: 1
-  minCurveLength: 5
-  minCurveAngle: 31.1
-  maxCurveAngle: 98
-  maxCurveHeightDifference: 3
-  curveHandleLengthRatio: 0.33
+  minCurveLength: 3
+  minCurveAngle: 34.3
+  maxCurveAngle: 180
+  maxCurveHeightDifference: 5
+  curveHandleLengthRatio: 0.317
+  rearPlacementDeadZone: 13.1
   machineMaterial: {fileID: 0}
   binMaterial: {fileID: 0}
   oreMaterial: {fileID: 0}
@@ -1733,6 +1734,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9833da32a0db63c4586ac19517ddc3ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: AutomationGame::SubmissionBin
+  inputConveyor: {fileID: 0}
   targetCount: 10
   counterLabel: {fileID: 1342286570}
 --- !u!1 &803545628
@@ -1750,7 +1752,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &803545629
 Transform:
   m_ObjectHideFlags: 0
@@ -2369,8 +2371,13 @@ MonoBehaviour:
   keepMomentumAtEnd: 1
   snapRotation: 1
   rotationSpeed: 720
+  inputMachine: {fileID: 0}
+  inputConveyor: {fileID: 0}
+  outputConveyor: {fileID: 0}
   outputReceiver: {fileID: 790321984}
   minimumSpacing: 0.8
+  meshRadius: 0
+  meshSegmentsPerUnit: 0
 --- !u!64 &1201760798
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -2475,7 +2482,7 @@ MeshRenderer:
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!33 &1201760801
 MeshFilter:
-  m_ObjectHideFlags: 8
+  m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
@@ -2719,8 +2726,13 @@ MonoBehaviour:
   keepMomentumAtEnd: 1
   snapRotation: 1
   rotationSpeed: 720
+  inputMachine: {fileID: 0}
+  inputConveyor: {fileID: 0}
+  outputConveyor: {fileID: 0}
   outputReceiver: {fileID: 0}
   minimumSpacing: 0.8
+  meshRadius: 0
+  meshSegmentsPerUnit: 0
 --- !u!114 &1288179883
 MonoBehaviour:
   m_ObjectHideFlags: 0
