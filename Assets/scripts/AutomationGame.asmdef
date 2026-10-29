@@ -1,0 +1,5 @@
+{
+    "name": "AutomationGame",
+    "references": ["FPSCore", "Unity.InputSystem", "Unity.Mathematics", "Unity.Splines", "UnityEngine.UI"],
+    "autoReferenced": true
+}

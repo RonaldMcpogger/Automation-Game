@@ -1,4 +1,9 @@
 ﻿<Solution>
+  <Project Path="FPSCore.csproj" />
+  <Project Path="AutomationGame.csproj" />
+  <Project Path="FPSCore.Editor.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
+  <Project Path="FPSCore.Installer.csproj" />
+  <Project Path="AutomationGame.PlayModeTests.csproj" />
 </Solution>

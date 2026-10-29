@@ -1,0 +1,6 @@
+{
+    "name": "AutomationGame.PlayModeTests",
+    "references": ["AutomationGame", "FPSCore", "Unity.Splines", "UnityEngine.UI"],
+    "optionalUnityReferences": ["TestAssemblies"],
+    "autoReferenced": false
+}
