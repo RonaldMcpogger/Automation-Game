@@ -18,9 +18,14 @@ public class FirstFactoryTests
         yield return SceneManager.LoadSceneAsync("MainScene");
         yield return null;
         player = Object.FindAnyObjectByType<FactoryPlayer>();
+        Assert.That(player, Is.Not.Null);
+        Assert.That(player.machine, Is.Not.Null);
+        // MainScene now starts as a building sandbox. Enable the preserved demo only for these tests.
+        player.machine.transform.parent.gameObject.SetActive(true);
+        yield return null;
         spot = Object.FindAnyObjectByType<ResourceSpot>();
-        machine = Object.FindAnyObjectByType<FactoryMachine>();
-        bin = Object.FindAnyObjectByType<SubmissionBin>();
+        machine = player.machine;
+        bin = player.submissionBin;
         belt = machine.outputBelt;
         machine.processingSeconds = 0.05f;
         belt.speed = 120f;
