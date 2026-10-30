@@ -15,6 +15,7 @@ public class FactoryPlayer : MonoBehaviour
     [Min(0.5f)] public float interactionRange = 4f;
 
     public int OreCount { get; private set; }
+    public Resource CarriedItem { get; private set; }
 
     private void Awake()
     {
@@ -24,16 +25,33 @@ public class FactoryPlayer : MonoBehaviour
 
     public bool TryCollectOre()
     {
+        return TryCollect(null);
+    }
+
+    public bool TryCollect(Resource item)
+    {
         if (OreCount >= oreCapacity)
             return false;
+        if (OreCount > 0 && CarriedItem != item)
+            return false;
+        CarriedItem = item;
         OreCount++;
         return true;
     }
 
     public int TakeOre(int requested)
     {
+        return TakeItem(null, requested);
+    }
+
+    public int TakeItem(Resource item, int requested)
+    {
+        if (item != null && CarriedItem != item)
+            return 0;
         int taken = Mathf.Clamp(requested, 0, OreCount);
         OreCount -= taken;
+        if (OreCount == 0)
+            CarriedItem = null;
         return taken;
     }
 

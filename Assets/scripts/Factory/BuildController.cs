@@ -80,6 +80,10 @@ public class BuildController : MonoBehaviour
     [Header("Prefabs (Optional overrides)")]
     public FactoryItem ingotPrefab;
 
+    [Header("Data-Driven Build Catalog")]
+    [Tooltip("Optional definitions, in the same order as build slots. When assigned, their names and recipes drive build mode.")]
+    public FactoryData[] buildableFactories;
+
     [Header("UI Placement")]
     public bool sidebarOnRight = true;
 
@@ -118,6 +122,7 @@ public class BuildController : MonoBehaviour
 
     private void Awake()
     {
+        ResolveBuildCatalog();
         if (viewCamera == null)
             viewCamera = GetComponentInChildren<Camera>() ?? Camera.main;
 
@@ -128,12 +133,34 @@ public class BuildController : MonoBehaviour
         RegisterInputManagerActions();
     }
 
+    private void ResolveBuildCatalog()
+    {
+        if (buildableFactories != null && buildableFactories.Length >= 4)
+            return;
+
+        var loadedDefinitions = Resources.LoadAll<FactoryData>("FactoryData");
+        if (loadedDefinitions == null || loadedDefinitions.Length == 0)
+            return;
+
+        buildableFactories = new FactoryData[4];
+        foreach (var definition in loadedDefinitions)
+        {
+            if (definition == null)
+                continue;
+            int index = (int)definition.kind;
+            if (index >= 0 && index < buildableFactories.Length)
+                buildableFactories[index] = definition;
+        }
+    }
+
     private void Start()
     {
         RegisterInputManagerActions();
 
         if (buildUI == null)
             buildUI = BuildModeUI.Create(transform, OnSlotClicked, sidebarOnRight);
+
+        RefreshBuildCatalogUI();
     }
 
     private void RegisterInputManagerActions()
@@ -256,6 +283,20 @@ public class BuildController : MonoBehaviour
     {
         if (slotIndex >= 0 && slotIndex <= 3)
             SetSelectedType((BuildableType)slotIndex);
+    }
+
+    private FactoryData GetFactoryData(BuildableType type)
+    {
+        int index = (int)type;
+        if (buildableFactories == null || index < 0 || index >= buildableFactories.Length)
+            return null;
+        return buildableFactories[index];
+    }
+
+    private void RefreshBuildCatalogUI()
+    {
+        if (buildUI != null)
+            buildUI.SetFactoryDefinitions(buildableFactories);
     }
 
     private void HandleRotationInput()
@@ -641,7 +682,10 @@ public class BuildController : MonoBehaviour
             buildUI = BuildModeUI.Create(transform, OnSlotClicked, sidebarOnRight);
 
         if (buildUI != null)
+        {
+            RefreshBuildCatalogUI();
             buildUI.SetVisible(active);
+        }
     }
 
     #region Building Spawning
@@ -836,13 +880,18 @@ public class BuildController : MonoBehaviour
 
     public FactoryMachine BuildSmelter(Vector3 groundPoint, Quaternion rotation)
     {
-        var smelterObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        smelterObj.name = "Smelter";
+        FactoryData data = GetFactoryData(BuildableType.Smelter);
+        var smelterObj = data != null && data.factoryPrefab != null
+            ? Instantiate(data.factoryPrefab)
+            : GameObject.CreatePrimitive(PrimitiveType.Cube);
+        smelterObj.name = data?.DisplayName ?? "Smelter";
         Vector3 center = groundPoint + Vector3.up * 1.2f;
         smelterObj.transform.position = center;
         smelterObj.transform.rotation = rotation;
-        smelterObj.transform.localScale = new Vector3(2f, 2.4f, 2f);
-        smelterObj.GetComponent<Renderer>().sharedMaterial = machineMaterial;
+        if (data == null || data.factoryPrefab == null)
+            smelterObj.transform.localScale = new Vector3(2f, 2.4f, 2f);
+        if (smelterObj.TryGetComponent<Renderer>(out var smelterRenderer))
+            smelterRenderer.sharedMaterial = machineMaterial;
 
         var lamp = GameObject.CreatePrimitive(PrimitiveType.Cube);
         lamp.name = "Smelter Status Light";
@@ -853,14 +902,15 @@ public class BuildController : MonoBehaviour
         Destroy(lamp.GetComponent<Collider>());
         lamp.GetComponent<Renderer>().sharedMaterial = yellowMaterial;
 
-        var machine = smelterObj.AddComponent<FactoryMachine>();
+        var machine = smelterObj.GetComponent<FactoryMachine>() ?? smelterObj.AddComponent<FactoryMachine>();
+        machine.factoryData = data;
         machine.idleMaterial = yellowMaterial;
         machine.workingMaterial = greenMaterial;
         machine.blockedMaterial = redMaterial;
         machine.statusLight = lamp.GetComponent<Renderer>();
         machine.ingotPrefab = ingotPrefab;
-        machine.processingSeconds = 2f;
-        machine.inputCapacity = 10;
+        machine.processingSeconds = data != null ? data.processingSeconds : 2f;
+        machine.inputCapacity = data != null ? data.inputCapacity : 10;
         machine.beltSurfaceHeight = 0.83f;
 
         CreateSign("SMELTER\n1 ore > 1 ingot\nPress E to load", center + Vector3.up * 1.9f, smelterObj.transform, Color.white);
@@ -882,18 +932,26 @@ public class BuildController : MonoBehaviour
 
     public SubmissionBin BuildSubmissionBin(Vector3 groundPoint, Quaternion rotation)
     {
-        var binRoot = new GameObject("Submission Bin");
+        FactoryData data = GetFactoryData(BuildableType.SubmissionBin);
+        var binRoot = data != null && data.factoryPrefab != null
+            ? Instantiate(data.factoryPrefab)
+            : new GameObject("Submission Bin");
+        binRoot.name = data?.DisplayName ?? "Submission Bin";
         binRoot.transform.position = groundPoint;
         binRoot.transform.rotation = rotation;
 
-        var bin = binRoot.AddComponent<SubmissionBin>();
+        var bin = binRoot.GetComponent<SubmissionBin>() ?? binRoot.AddComponent<SubmissionBin>();
         bin.targetCount = 10;
+        bin.acceptedItem = data != null ? data.inputItem : null;
 
-        CreateChildCube("Bin Base", binRoot.transform, new Vector3(0f, 0.15f, 0f), new Vector3(2.8f, 0.3f, 2.8f), binMaterial);
-        CreateChildCube("Bin Left", binRoot.transform, new Vector3(-1.3f, 0.85f, 0f), new Vector3(0.2f, 1.4f, 2.8f), yellowMaterial);
-        CreateChildCube("Bin Right", binRoot.transform, new Vector3(1.3f, 0.85f, 0f), new Vector3(0.2f, 1.4f, 2.8f), yellowMaterial);
-        CreateChildCube("Bin Front", binRoot.transform, new Vector3(0f, 0.85f, 1.3f), new Vector3(2.4f, 1.4f, 0.2f), binMaterial);
-        CreateChildCube("Bin Back", binRoot.transform, new Vector3(0f, 0.85f, -1.3f), new Vector3(2.4f, 1.4f, 0.2f), binMaterial);
+        if (data == null || data.factoryPrefab == null)
+        {
+            CreateChildCube("Bin Base", binRoot.transform, new Vector3(0f, 0.15f, 0f), new Vector3(2.8f, 0.3f, 2.8f), binMaterial);
+            CreateChildCube("Bin Left", binRoot.transform, new Vector3(-1.3f, 0.85f, 0f), new Vector3(0.2f, 1.4f, 2.8f), yellowMaterial);
+            CreateChildCube("Bin Right", binRoot.transform, new Vector3(1.3f, 0.85f, 0f), new Vector3(0.2f, 1.4f, 2.8f), yellowMaterial);
+            CreateChildCube("Bin Front", binRoot.transform, new Vector3(0f, 0.85f, 1.3f), new Vector3(2.4f, 1.4f, 0.2f), binMaterial);
+            CreateChildCube("Bin Back", binRoot.transform, new Vector3(0f, 0.85f, -1.3f), new Vector3(2.4f, 1.4f, 0.2f), binMaterial);
+        }
 
         var trigger = binRoot.AddComponent<BoxCollider>();
         trigger.isTrigger = true;
@@ -923,15 +981,21 @@ public class BuildController : MonoBehaviour
 
     public ResourceSpot BuildResourceSpot(Vector3 groundPoint, Quaternion rotation)
     {
-        var spotObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        spotObj.name = "Iron Ore Spot";
+        FactoryData data = GetFactoryData(BuildableType.ResourceSpot);
+        var spotObj = data != null && data.factoryPrefab != null
+            ? Instantiate(data.factoryPrefab)
+            : GameObject.CreatePrimitive(PrimitiveType.Cube);
+        spotObj.name = data?.DisplayName ?? "Iron Ore Spot";
         Vector3 center = groundPoint + Vector3.up * 0.55f;
         spotObj.transform.position = center;
         spotObj.transform.rotation = rotation;
-        spotObj.transform.localScale = new Vector3(2f, 1.1f, 2f);
-        spotObj.GetComponent<Renderer>().sharedMaterial = oreMaterial;
+        if (data == null || data.factoryPrefab == null)
+            spotObj.transform.localScale = new Vector3(2f, 1.1f, 2f);
+        if (spotObj.TryGetComponent<Renderer>(out var spotRenderer))
+            spotRenderer.sharedMaterial = oreMaterial;
 
-        var spot = spotObj.AddComponent<ResourceSpot>();
+        var spot = spotObj.GetComponent<ResourceSpot>() ?? spotObj.AddComponent<ResourceSpot>();
+        spot.resourceData = data != null ? data.outputItem : null;
         spot.gatherInterval = 0.4f;
 
         CreateSign("IRON ORE\nHold E to gather", center + Vector3.up * 1.7f, spotObj.transform, yellowMaterial.color);

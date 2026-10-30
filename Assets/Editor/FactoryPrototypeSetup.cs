@@ -80,6 +80,8 @@ public static class FactoryPrototypeSetup
         var ingotObj = AssetDatabase.LoadAssetAtPath<GameObject>($"{ArtPath}/Iron Ingot.prefab");
         if (ingotObj != null)
             buildController.ingotPrefab = ingotObj.GetComponent<FactoryItem>();
+        buildController.buildableFactories = Resources.LoadAll<FactoryData>("FactoryData")
+            .OrderBy(data => data.kind).ToArray();
 
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
@@ -207,6 +209,8 @@ public static class FactoryPrototypeSetup
         buildController.greenMaterial = green;
         buildController.redMaterial = red;
         buildController.ingotPrefab = machine.ingotPrefab;
+        buildController.buildableFactories = Resources.LoadAll<FactoryData>("FactoryData")
+            .OrderBy(data => data.kind).ToArray();
 
         controller.GetComponent<CharacterController>().enabled = false;
         controller.transform.position = new Vector3(start.x - 4f, 1.05f, start.z + 8f);

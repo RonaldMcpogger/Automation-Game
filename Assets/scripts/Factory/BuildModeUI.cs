@@ -31,6 +31,19 @@ public class BuildModeUI : MonoBehaviour
         "[4] Resource Spot"
     };
 
+    /// <summary>Uses the build catalog for the slot labels without requiring the UI to know recipes.</summary>
+    public void SetFactoryDefinitions(FactoryData[] definitions)
+    {
+        if (slotLabels == null || definitions == null)
+            return;
+
+        for (int i = 0; i < slotLabels.Length && i < definitions.Length; i++)
+        {
+            if (definitions[i] != null)
+                slotLabels[i].text = $"[{i + 1}] {definitions[i].DisplayName}";
+        }
+    }
+
     /// <summary>
     /// Creates and attaches the vertical sidebar BuildModeUI directly to the screen Canvas.
     /// </summary>

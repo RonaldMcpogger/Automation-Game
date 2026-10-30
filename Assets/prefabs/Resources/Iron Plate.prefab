@@ -33,7 +33,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -5.72, y: 0.718, z: 2.63}
-  m_LocalScale: {x: 1.819395, y: 0.044559002, z: 2.0382698}
+  m_LocalScale: {x: 0.98316467, y: 0.024078794, z: 1.1014402}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -170,7 +170,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: FPSCore::Interactable
   interactable: 1
   interactWhen: 1
-  promptText: 
+  promptText: Iron Plate
   prompts: []
   IsDebugEnabled: 0
 --- !u!114 &5384668952751862208
@@ -185,11 +185,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1f81a8648b13908499a0e716e117dcf5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: FPSCore::Carriable
-  followGain: 15
+  followGain: 11.9
   maxFollowSpeed: 20
   holdSize: 2
   rotateGain: 12
-  maxRotateSpeed: 30
+  maxRotateSpeed: 10.74
   throwMultiplier: 1
   collisionRestoreDelay: 0.3
   breakGrace: 1
@@ -197,6 +197,6 @@ MonoBehaviour:
   holdRotation: {x: 0, y: 0, z: 0}
   levelHold: 0
   holdOffset: {x: 0, y: 0, z: 0}
-  keepClearOfCamera: 0
+  keepClearOfCamera: 1
   cameraClearance: 0.05
   lockToView: 0

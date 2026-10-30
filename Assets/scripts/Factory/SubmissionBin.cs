@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class SubmissionBin : ConveyorReceiver
 {
+    [Tooltip("When assigned, only this item ScriptableObject is accepted.")]
+    public Resource acceptedItem;
     [Min(1)] public int targetCount = 10;
     public TextMesh counterLabel;
     public int SubmittedCount { get; private set; }
@@ -10,7 +12,7 @@ public class SubmissionBin : ConveyorReceiver
     public override bool TryReceive(Rigidbody body)
     {
         if (!isActiveAndEnabled || body == null || !body.TryGetComponent<FactoryItem>(out var item)
-            || !item.TryMarkSubmitted())
+            || !item.TryMarkSubmitted(acceptedItem))
             return false;
 
         SubmittedCount++;
