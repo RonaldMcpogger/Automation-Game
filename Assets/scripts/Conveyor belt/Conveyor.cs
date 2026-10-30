@@ -247,10 +247,25 @@ public class Conveyor : MonoBehaviour
         body.isKinematic = attachment.originalKinematic;
         body.useGravity = attachment.originalUseGravity;
 
+        // The spline endpoint is in the belt's end cap. Move the entire item beyond
+        // that cap before restoring physics, otherwise it can immediately collide
+        // with the same belt and attach again instead of leaving the conveyor.
+        Evaluate(t, out Vector3 position, out Vector3 tangent, out Vector3 up);
+        Vector3 travelDirection = speed < 0f ? -tangent : tangent;
+        if (travelDirection.sqrMagnitude > 0.0001f)
+        {
+            float supportDistance = GetSupportDistance(body, up);
+            float exitDistance = GetSupportDistance(body, travelDirection)
+                + Mathf.Max(surfOffset, 0.01f);
+            Vector3 targetCenterOfMass = position
+                + up * (attachment.surfaceHeight + supportDistance + surfOffset)
+                + travelDirection * exitDistance;
+            body.position += targetCenterOfMass - body.worldCenterOfMass;
+        }
+
         if (applyMomentum && !body.isKinematic)
         {
-            Evaluate(t, out _, out Vector3 tangent, out _);
-            body.linearVelocity = tangent.normalized * speed;
+            body.linearVelocity = travelDirection.normalized * Mathf.Abs(speed);
         }
 
         recentlyReleased[body] = Time.time + Time.fixedDeltaTime * 2f;

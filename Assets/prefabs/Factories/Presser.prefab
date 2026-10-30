@@ -328,6 +328,35 @@ Transform:
   - {fileID: 5474178419939004743}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8192736451029384756
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5158388313299980367}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e288daf96c26414f9c15391253575516, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Presser
+  factoryData: {fileID: 11400000, guid: 2bd7ff2c57fd4f4d99f11bd3a5c70c81, type: 2}
+  outputBelt: {fileID: 0}
+  ingotPrefab: {fileID: 0}
+  statusLight: {fileID: 0}
+  idleMaterial: {fileID: 0}
+  workingMaterial: {fileID: 0}
+  blockedMaterial: {fileID: 0}
+  inputCapacity: 10
+  processingSeconds: 1.5
+  beltSurfaceHeight: 0.83
+  smashHead: {fileID: 532784779804383602}
+  inputPort: {fileID: 9004283817610601688}
+  outputPort: {fileID: 5474178419939004743}
+  bed: {fileID: 5512508649134098855}
+  trigger: {fileID: 0}
+  receiver: {fileID: 0}
+  smashStroke: 0.85
 --- !u!1 &5400019905556293754
 GameObject:
   m_ObjectHideFlags: 0
@@ -1042,32 +1071,3 @@ CapsuleCollider:
   m_Height: 2
   m_Direction: 1
   m_Center: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
---- !u!114 &8192736451029384756
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5158388313299980367}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e288daf96c26414f9c15391253575516, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Presser
-  factoryData: {fileID: 11400000, guid: 2bd7ff2c57fd4f4d99f11bd3a5c70c81, type: 2}
-  outputBelt: {fileID: 0}
-  ingotPrefab: {fileID: 0}
-  statusLight: {fileID: 0}
-  idleMaterial: {fileID: 0}
-  workingMaterial: {fileID: 0}
-  blockedMaterial: {fileID: 0}
-  inputCapacity: 10
-  processingSeconds: 1.5
-  beltSurfaceHeight: 0.83
-  smashHead: {fileID: 532784779804383602}
-  inputPort: {fileID: 9004283817610601688}
-  outputPort: {fileID: 5474178419939004743}
-  bed: {fileID: 5512508649134098855}
-  trigger: {fileID: 0}
-  receiver: {fileID: 0}
-  smashStroke: 0.85

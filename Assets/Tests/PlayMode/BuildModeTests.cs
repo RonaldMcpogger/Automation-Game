@@ -137,6 +137,30 @@ public class BuildModeTests
     }
 
     [UnityTest]
+    public IEnumerator StandaloneBeltEjectsCargoBeyondItsOpenEnd()
+    {
+        Vector3 start = new Vector3(50f, 1f, 0f);
+        Vector3 end = start + Vector3.forward * 4f;
+        var belt = buildController.BuildConveyorBelt(start, end);
+        belt.speed = 20f;
+
+        var cargo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        cargo.transform.position = start;
+        var body = cargo.AddComponent<Rigidbody>();
+        body.useGravity = false;
+
+        Assert.That(belt.HasOutputConnection, Is.False);
+        Assert.That(belt.TryLoadAtStart(body, 0.5f), Is.True);
+
+        yield return new WaitForSeconds(0.5f);
+
+        Assert.That(belt.ItemCount, Is.Zero, "Cargo should detach from an open belt end.");
+        Assert.That(body.transform.position.z, Is.GreaterThan(end.z + 0.45f),
+            "Cargo should clear the conveyor end cap rather than reattaching to it.");
+        Object.Destroy(cargo);
+    }
+
+    [UnityTest]
     public IEnumerator BuildModeUIAnchoredToScreenSideWhenActive()
     {
         buildController.SetBuildModeActive(true);

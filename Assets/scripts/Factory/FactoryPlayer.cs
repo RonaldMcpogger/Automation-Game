@@ -21,6 +21,19 @@ public class FactoryPlayer : MonoBehaviour
     {
         if (!TryGetComponent<BuildController>(out _))
             gameObject.AddComponent<BuildController>();
+
+        // The player is a prefab instance, so scene-specific references can be lost when
+        // the prefab is reapplied. Without a camera the interaction ray is never cast and
+        // pressing Interact at a machine appears to do nothing.
+        if (viewCamera == null)
+            viewCamera = GetComponentInChildren<Camera>(true);
+        if (viewCamera == null)
+            viewCamera = Camera.main;
+
+        if (machine == null)
+            machine = FindAnyObjectByType<FactoryMachine>();
+        if (submissionBin == null)
+            submissionBin = FindAnyObjectByType<SubmissionBin>();
     }
 
     public bool TryCollectOre()
