@@ -86,7 +86,57 @@ public static class FactoryPrototypeSetup
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
         AssetDatabase.SaveAssets();
-        Debug.Log("Build Mode configured and saved on Player in MainScene.");
+        Debug.Log($"Build Mode configured and saved on Player in MainScene. Buildable count: {buildController.buildableFactories.Length}");
+    }
+
+    [MenuItem("Tools/Factory Prototype/Validate Presser Setup")]
+    public static void ValidatePresserSetup()
+    {
+        Debug.Log("--- Validating Presser Setup ---");
+
+        var presserData = Resources.Load<FactoryData>("FactoryData/Presser");
+        if (presserData == null)
+            throw new InvalidOperationException("FactoryData/Presser not found in Resources.");
+        Debug.Log($"[OK] Presser FactoryData found: {presserData.DisplayName}, kind: {presserData.kind}");
+
+        if (presserData.inputItem == null || presserData.inputItem.DisplayName != "Iron Ingot")
+            throw new InvalidOperationException("Presser inputItem must be Iron Ingot.");
+        Debug.Log($"[OK] Presser inputItem is: {presserData.inputItem.DisplayName}");
+
+        if (presserData.outputItem == null || !presserData.outputItem.DisplayName.Contains("Plate"))
+            throw new InvalidOperationException("Presser outputItem must be Iron Plate.");
+        Debug.Log($"[OK] Presser outputItem is: {presserData.outputItem.DisplayName}");
+
+        var allData = Resources.LoadAll<FactoryData>("FactoryData").OrderBy(d => d.kind).ToArray();
+        Debug.Log($"[OK] Total FactoryData in catalog: {allData.Length}");
+        for (int i = 0; i < allData.Length; i++)
+            Debug.Log($"   Slot {i + 1}: {allData[i].DisplayName} (Kind: {allData[i].kind})");
+
+        var presserPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Factories/Presser.prefab");
+        if (presserPrefab == null)
+            throw new InvalidOperationException("Presser.prefab not found at Assets/prefabs/Factories/Presser.prefab.");
+        Debug.Log("[OK] Presser.prefab loaded.");
+
+        var presser = presserPrefab.GetComponent<Presser>();
+        if (presser == null)
+            throw new InvalidOperationException("Presser component missing from Presser.prefab.");
+        Debug.Log("[OK] Presser component found on Presser.prefab.");
+
+        var ingotPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Resources/Iron Ingot.prefab");
+        if (ingotPrefab == null)
+            throw new InvalidOperationException("Iron Ingot.prefab not found.");
+        if (ingotPrefab.GetComponent<Interactable>() == null || ingotPrefab.GetComponent<Carriable>() == null)
+            throw new InvalidOperationException("Iron Ingot.prefab must have Interactable and Carriable.");
+        Debug.Log("[OK] Iron Ingot.prefab has Interactable and Carriable.");
+
+        var platePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Resources/Iron Plate.prefab");
+        if (platePrefab == null)
+            throw new InvalidOperationException("Iron Plate.prefab not found.");
+        if (platePrefab.GetComponent<Interactable>() == null || platePrefab.GetComponent<Carriable>() == null)
+            throw new InvalidOperationException("Iron Plate.prefab must have Interactable and Carriable.");
+        Debug.Log("[OK] Iron Plate.prefab has Interactable and Carriable.");
+
+        Debug.Log("--- All Presser validations passed successfully! ---");
     }
 
     [MenuItem("Tools/Factory Prototype/Set Up Main Scene")]

@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.Serialization;
 
-public enum FactoryKind { Conveyor, Machine, SubmissionBin, ResourceSpot }
+public enum FactoryKind { Conveyor, Machine, SubmissionBin, ResourceSpot, Presser }
 
 [CreateAssetMenu(fileName = "newFactoryData", menuName = "Automation Game /Factory Data")]
 public class FactoryData : ScriptableObject

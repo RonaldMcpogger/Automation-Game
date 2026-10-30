@@ -517,6 +517,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9ac27f85fc3459547a6eb952d0104bc7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: AutomationGame::ResourceSpot
+  resourceData: {fileID: 0}
   gatherInterval: 0.4
 --- !u!1 &99647304
 GameObject:
@@ -1316,6 +1317,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d54f2241cec50894d9a36e77b651ab04, type: 3}
   m_Name: 
   m_EditorClassIdentifier: AutomationGame::FactoryMachine
+  factoryData: {fileID: 0}
   outputBelt: {fileID: 1201760797}
   ingotPrefab: {fileID: 1569788509712831468, guid: a50145ba71b0d8042a31506e4068a281, type: 3}
   statusLight: {fileID: 42037155}
@@ -2161,6 +2163,7 @@ MonoBehaviour:
   redMaterial: {fileID: 0}
   ghostMaterial: {fileID: 0}
   ingotPrefab: {fileID: 0}
+  buildableFactories: []
   sidebarOnRight: 1
 --- !u!1 &1342286568
 GameObject:

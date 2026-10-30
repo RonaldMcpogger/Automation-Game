@@ -16,18 +16,18 @@ public class FactoryMachine : FactoryInteractable
     [Tooltip("Height of the existing belt's surface above its spline center.")]
     public float beltSurfaceHeight = 0.83f;
 
-    public int BufferedOre { get; private set; }
-    public bool IsProcessing { get; private set; }
-    public bool OutputReady { get; private set; }
-    public int ProducedCount { get; private set; }
-    private float elapsed;
+    public int BufferedOre { get; protected set; }
+    public bool IsProcessing { get; protected set; }
+    public bool OutputReady { get; protected set; }
+    public int ProducedCount { get; protected set; }
+    protected float elapsed;
 
-    private void Awake()
+    protected virtual void Awake()
     {
         ApplyFactoryData();
     }
 
-    public void ApplyFactoryData()
+    public virtual void ApplyFactoryData()
     {
         if (factoryData == null)
             return;
@@ -37,10 +37,10 @@ public class FactoryMachine : FactoryInteractable
 
     public Resource InputItem => factoryData != null ? factoryData.inputItem : null;
     public Resource OutputItem => factoryData != null ? factoryData.outputItem : null;
-    private FactoryItem OutputPrefab => OutputItem != null && OutputItem.objModel != null
+    public virtual FactoryItem OutputPrefab => OutputItem != null && OutputItem.objModel != null
         ? OutputItem.objModel.GetComponent<FactoryItem>() : ingotPrefab;
 
-    public string Status => outputBelt == null || OutputPrefab == null ? "Output not configured"
+    public virtual string Status => outputBelt == null || OutputPrefab == null ? "Output not configured"
         : OutputReady ? $"Output blocked - waiting | Ore queued: {BufferedOre}"
         : IsProcessing ? $"Smelting {Mathf.Clamp01(elapsed / processingSeconds):P0} | Ore queued: {BufferedOre}"
         : $"Waiting for ore | Ore queued: {BufferedOre}";
@@ -52,7 +52,7 @@ public class FactoryMachine : FactoryInteractable
 
     public override void Interact(FactoryPlayer player) => LoadFrom(player);
 
-    public int LoadFrom(FactoryPlayer player)
+    public virtual int LoadFrom(FactoryPlayer player)
     {
         if (!isActiveAndEnabled || player == null)
             return 0;
@@ -61,7 +61,7 @@ public class FactoryMachine : FactoryInteractable
         return loaded;
     }
 
-    private void Update()
+    protected virtual void Update()
     {
         FactoryItem outputPrefab = OutputPrefab;
         if (outputBelt == null || outputPrefab == null)

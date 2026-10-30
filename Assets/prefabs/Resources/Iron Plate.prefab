@@ -155,6 +155,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67aafb535481fdc4bbc12fb846590ee7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: AutomationGame::FactoryItem
+  itemData: {fileID: 11400000, guid: 11531c87ba2203b4ba752e4aa3281860, type: 2}
   material: 1
 --- !u!114 &6857883219878946472
 MonoBehaviour:

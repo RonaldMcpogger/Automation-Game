@@ -13,7 +13,8 @@ public enum BuildableType
     ConveyorBelt = 0,
     Smelter = 1,
     SubmissionBin = 2,
-    ResourceSpot = 3
+    ResourceSpot = 3,
+    Presser = 4
 }
 
 /// <summary>
@@ -135,14 +136,14 @@ public class BuildController : MonoBehaviour
 
     private void ResolveBuildCatalog()
     {
-        if (buildableFactories != null && buildableFactories.Length >= 4)
+        if (buildableFactories != null && buildableFactories.Length >= 5)
             return;
 
         var loadedDefinitions = Resources.LoadAll<FactoryData>("FactoryData");
         if (loadedDefinitions == null || loadedDefinitions.Length == 0)
             return;
 
-        buildableFactories = new FactoryData[4];
+        buildableFactories = new FactoryData[5];
         foreach (var definition in loadedDefinitions)
         {
             if (definition == null)
@@ -234,7 +235,7 @@ public class BuildController : MonoBehaviour
     private void HandleSelectionInput()
     {
         int hotbar = IInput.HotbarPressedIndex;
-        if (hotbar >= 0 && hotbar < 4)
+        if (hotbar >= 0 && hotbar < 5)
         {
             SetSelectedType((BuildableType)hotbar);
             return;
@@ -246,6 +247,7 @@ public class BuildController : MonoBehaviour
             if (Keyboard.current.digit2Key.wasPressedThisFrame) { SetSelectedType(BuildableType.Smelter); return; }
             if (Keyboard.current.digit3Key.wasPressedThisFrame) { SetSelectedType(BuildableType.SubmissionBin); return; }
             if (Keyboard.current.digit4Key.wasPressedThisFrame) { SetSelectedType(BuildableType.ResourceSpot); return; }
+            if (Keyboard.current.digit5Key.wasPressedThisFrame) { SetSelectedType(BuildableType.Presser); return; }
         }
 
         float scroll = 0f;
@@ -256,12 +258,12 @@ public class BuildController : MonoBehaviour
 
         if (scroll > 0.1f)
         {
-            int next = ((int)SelectedType - 1 + 4) % 4;
+            int next = ((int)SelectedType - 1 + 5) % 5;
             SetSelectedType((BuildableType)next);
         }
         else if (scroll < -0.1f)
         {
-            int next = ((int)SelectedType + 1) % 4;
+            int next = ((int)SelectedType + 1) % 5;
             SetSelectedType((BuildableType)next);
         }
     }
@@ -281,7 +283,7 @@ public class BuildController : MonoBehaviour
 
     private void OnSlotClicked(int slotIndex)
     {
-        if (slotIndex >= 0 && slotIndex <= 3)
+        if (slotIndex >= 0 && slotIndex <= 4)
             SetSelectedType((BuildableType)slotIndex);
     }
 
@@ -428,6 +430,10 @@ public class BuildController : MonoBehaviour
         {
             BuildResourceSpot(hit.point, Quaternion.Euler(0, BuildingRotation, 0));
         }
+        else if (SelectedType == BuildableType.Presser)
+        {
+            BuildPresser(hit.point, Quaternion.Euler(0, BuildingRotation, 0));
+        }
     }
 
     public bool TryGetPlacementHit(out RaycastHit hit)
@@ -479,8 +485,11 @@ public class BuildController : MonoBehaviour
             // 1. Smelter output port (in front of smelter)
             foreach (var machine in FindObjectsByType<FactoryMachine>())
             {
-                Vector3 outputPort = machine.transform.position + machine.transform.forward * 1.8f;
-                outputPort.y = machine.transform.position.y - 1.2f + conveyorHeightOffset;
+                Vector3 outputPort = (machine is Presser pm && pm.outputPort != null)
+                    ? pm.outputPort.position
+                    : machine.transform.position + machine.transform.forward * 1.8f;
+                if (!(machine is Presser pm2 && pm2.outputPort != null))
+                    outputPort.y = machine.transform.position.y - 1.2f + conveyorHeightOffset;
                 float dist = Vector3.Distance(hitPoint, outputPort);
                 float centerDist = Vector3.Distance(hitPoint, machine.transform.position);
 
@@ -489,7 +498,7 @@ public class BuildController : MonoBehaviour
                 {
                     bestDist = Mathf.Min(dist, centerDist);
                     snap.position = outputPort;
-                    snap.targetName = "Smelter Output";
+                    snap.targetName = machine is Presser ? "Presser Output" : "Smelter Output";
                     snap.machine = machine;
                     snap.isSnapped = true;
                 }
@@ -518,9 +527,11 @@ public class BuildController : MonoBehaviour
         else // forEnd
         {
             // 1. Submission Bin intake
-            foreach (var bin in FindObjectsByType<SubmissionBin>())
+            foreach (var bin in FindObjectsByType<ConveyorReceiver>())
             {
-                Vector3 intake = bin.transform.position + Vector3.up * 1.0f;
+                Vector3 intake = (bin is PresserReceiver pr && pr.presser != null && pr.presser.inputPort != null)
+                    ? pr.presser.inputPort.position
+                    : bin.transform.position + Vector3.up * 1.0f;
                 float dist = Vector3.Distance(hitPoint, intake);
                 float centerDist = Vector3.Distance(hitPoint, bin.transform.position);
 
@@ -529,7 +540,7 @@ public class BuildController : MonoBehaviour
                 {
                     bestDist = Mathf.Min(dist, centerDist);
                     snap.position = intake;
-                    snap.targetName = "Submission Bin";
+                    snap.targetName = bin is PresserReceiver ? "Presser Input" : "Submission Bin";
                     snap.receiver = bin;
                     snap.isSnapped = true;
                 }
@@ -638,6 +649,8 @@ public class BuildController : MonoBehaviour
                 previewBuildingObj.transform.position = hit.point + Vector3.up * 0.7f;
             else if (SelectedType == BuildableType.ResourceSpot)
                 previewBuildingObj.transform.position = hit.point + Vector3.up * 0.55f;
+            else if (SelectedType == BuildableType.Presser)
+                previewBuildingObj.transform.position = hit.point + Vector3.up * 1.2f;
         }
     }
 
@@ -652,6 +665,8 @@ public class BuildController : MonoBehaviour
             previewBuildingObj.transform.localScale = new Vector3(2.8f, 1.4f, 2.8f);
         else if (SelectedType == BuildableType.ResourceSpot)
             previewBuildingObj.transform.localScale = new Vector3(2f, 1.1f, 2f);
+        else if (SelectedType == BuildableType.Presser)
+            previewBuildingObj.transform.localScale = new Vector3(2f, 2.4f, 2f);
     }
 
     private void UpdateUI()
@@ -819,7 +834,9 @@ public class BuildController : MonoBehaviour
         Vector3 direction = fallback;
 
         if (snap.machine != null)
-            direction = snap.machine.transform.forward;
+            direction = (snap.machine is Presser pm && pm.outputPort != null)
+                ? pm.outputPort.forward
+                : snap.machine.transform.forward;
         else if (snap.receiver != null)
             direction = snap.receiver.transform.forward;
         else if (snap.conveyor != null && snap.conveyor.ConveyerSpline != null)
@@ -1003,6 +1020,75 @@ public class BuildController : MonoBehaviour
         return spot;
     }
 
+    public Presser BuildPresser(Vector3 groundPoint, Quaternion rotation)
+    {
+        FactoryData data = GetFactoryData(BuildableType.Presser);
+        var presserObj = data != null && data.factoryPrefab != null
+            ? Instantiate(data.factoryPrefab)
+            : GameObject.CreatePrimitive(PrimitiveType.Cube);
+        presserObj.name = data?.DisplayName ?? "Presser";
+        presserObj.transform.position = groundPoint;
+        presserObj.transform.rotation = rotation;
+
+        var presser = presserObj.GetComponent<Presser>() ?? presserObj.AddComponent<Presser>();
+        presser.factoryData = data;
+        presser.idleMaterial = yellowMaterial;
+        presser.workingMaterial = greenMaterial;
+        presser.blockedMaterial = redMaterial;
+        presser.processingSeconds = data != null ? data.processingSeconds : 1.5f;
+        presser.inputCapacity = data != null ? data.inputCapacity : 10;
+        presser.InitReferences();
+
+        if (presser.statusLight == null)
+        {
+            var lamp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            lamp.name = "Status Light";
+            lamp.transform.SetParent(presserObj.transform, false);
+            lamp.transform.localPosition = new Vector3(0f, 2.3f, 0.8f);
+            lamp.transform.localScale = new Vector3(0.5f, 0.15f, 0.08f);
+            Destroy(lamp.GetComponent<Collider>());
+            presser.statusLight = lamp.GetComponent<Renderer>();
+            lamp.GetComponent<Renderer>().sharedMaterial = yellowMaterial;
+        }
+
+        CreateSign("PRESSER\n1 ingot > 1 plate\nDrop ingot to press", groundPoint + Vector3.up * 2.8f, presserObj.transform, Color.white);
+
+        // Auto-connect to conveyor starting in front of output port
+        Vector3 outputPos = presser.outputPort != null
+            ? presser.outputPort.position
+            : groundPoint + (rotation * Vector3.forward) * 1.8f;
+        foreach (var conveyor in FindObjectsByType<Conveyor>())
+        {
+            if (!conveyor.HasInputConnection && Vector3.Distance(conveyor.StartPosition, outputPos) < 2.5f)
+            {
+                presser.outputBelt = conveyor;
+                conveyor.inputMachine = presser;
+                break;
+            }
+        }
+
+        // Auto-connect to conveyor ending near input port
+        Vector3 inputPos = presser.inputPort != null
+            ? presser.inputPort.position
+            : groundPoint - (rotation * Vector3.forward) * 1.8f;
+        foreach (var conveyor in FindObjectsByType<Conveyor>())
+        {
+            if (conveyor.ConveyerSpline != null)
+            {
+                Vector3 endPos = conveyor.ConveyerSpline.EvaluatePosition(1f);
+                if (presser.receiver != null && !presser.receiver.HasInputConnection && !conveyor.HasOutputConnection
+                    && Vector3.Distance(endPos, inputPos) < 2.5f)
+                {
+                    conveyor.outputReceiver = presser.receiver;
+                    presser.receiver.inputConveyor = conveyor;
+                    break;
+                }
+            }
+        }
+
+        return presser;
+    }
+
     /// <summary>
     /// Claims free endpoint ports for a new conveyor. Explicit placement snaps are preferred;
     /// the proximity fallback keeps programmatic construction working. Every assignment is made
@@ -1019,7 +1105,9 @@ public class BuildController : MonoBehaviour
         {
             foreach (var machine in FindObjectsByType<FactoryMachine>())
             {
-                Vector3 outputPort = machine.transform.position + machine.transform.forward * 1.8f;
+                Vector3 outputPort = (machine is Presser pm && pm.outputPort != null)
+                    ? pm.outputPort.position
+                    : machine.transform.position + machine.transform.forward * 1.8f;
                 if (machine.outputBelt == null && (Vector3.Distance(outputPort, start) < 2.5f
                     || Vector3.Distance(machine.transform.position, start) < 3.0f))
                 {
@@ -1049,7 +1137,10 @@ public class BuildController : MonoBehaviour
         {
             foreach (var receiver in FindObjectsByType<ConveyorReceiver>())
             {
-                if (!receiver.HasInputConnection && Vector3.Distance(receiver.transform.position, end) < 3.5f)
+                Vector3 intakePos = (receiver is PresserReceiver pr && pr.presser != null && pr.presser.inputPort != null)
+                    ? pr.presser.inputPort.position
+                    : receiver.transform.position;
+                if (!receiver.HasInputConnection && Vector3.Distance(intakePos, end) < 3.5f)
                 {
                     targetReceiver = receiver;
                     break;

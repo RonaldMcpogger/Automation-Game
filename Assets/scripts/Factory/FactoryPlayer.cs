@@ -85,7 +85,7 @@ public class FactoryPlayer : MonoBehaviour
             var build = GetComponent<BuildController>();
             if (build != null && build.IsBuildModeActive)
             {
-                promptText.text = "[B] Exit Build Mode  |  [1-4] Select Building  |  [LMB] Place";
+                promptText.text = "[B] Exit Build Mode  |  [1-5] Select Building  |  [LMB] Place";
             }
             else
             {

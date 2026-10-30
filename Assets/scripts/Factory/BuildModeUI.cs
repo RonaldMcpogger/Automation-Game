@@ -28,7 +28,8 @@ public class BuildModeUI : MonoBehaviour
         "[1] Conveyor Belt",
         "[2] Smelter",
         "[3] Submission Bin",
-        "[4] Resource Spot"
+        "[4] Resource Spot",
+        "[5] Presser"
     };
 
     /// <summary>Uses the build catalog for the slot labels without requiring the UI to know recipes.</summary>
@@ -102,14 +103,14 @@ public class BuildModeUI : MonoBehaviour
         {
             panelRect.anchorMin = panelRect.anchorMax = new Vector2(1f, 0.5f);
             panelRect.pivot = new Vector2(1f, 0.5f);
-            panelRect.sizeDelta = new Vector2(250f, 440f);
+            panelRect.sizeDelta = new Vector2(250f, 490f);
             panelRect.anchoredPosition = new Vector2(-24f, 0f);
         }
         else
         {
             panelRect.anchorMin = panelRect.anchorMax = new Vector2(0f, 0.5f);
             panelRect.pivot = new Vector2(0f, 0.5f);
-            panelRect.sizeDelta = new Vector2(250f, 440f);
+            panelRect.sizeDelta = new Vector2(250f, 490f);
             panelRect.anchoredPosition = new Vector2(24f, 0f);
         }
 
@@ -165,7 +166,7 @@ public class BuildModeUI : MonoBehaviour
         subheaderText.fontSize = 12;
         subheaderText.alignment = TextAnchor.MiddleCenter;
         subheaderText.color = new Color(0.65f, 0.7f, 0.75f);
-        subheaderText.text = "Select item or press [1-4]";
+        subheaderText.text = "Select item or press [1-5]";
         subheaderText.raycastTarget = false;
 
         // Vertical Slots Container
@@ -174,7 +175,7 @@ public class BuildModeUI : MonoBehaviour
         var slotsRect = slotsContainer.GetComponent<RectTransform>();
         slotsRect.anchorMin = slotsRect.anchorMax = new Vector2(0.5f, 1f);
         slotsRect.pivot = new Vector2(0.5f, 1f);
-        slotsRect.sizeDelta = new Vector2(230f, 180f);
+        slotsRect.sizeDelta = new Vector2(230f, 226f);
         slotsRect.anchoredPosition = new Vector2(0f, -66f);
         slotsRect.localScale = Vector3.one;
 
@@ -344,7 +345,7 @@ public class BuildModeUI : MonoBehaviour
                         $"• Snap: Smelter / Belt\n" +
                         $"[{widthKey}] Width: {widthStr}\n" +
                         $"[{cancelKey}] Cancel\n" +
-                        $"[1-4] or Scroll: Switch\n" +
+                        $"[1-5] or Scroll: Switch\n" +
                         $"[{exitKey}] Exit Build Mode";
                 }
                 else
@@ -354,7 +355,7 @@ public class BuildModeUI : MonoBehaviour
                         $"• Snap: Bin / Belt\n" +
                         $"[{widthKey}] Width: {widthStr}\n" +
                         $"[{cancelKey}] Unpin Start\n" +
-                        $"[1-4] Switch Building\n" +
+                        $"[1-5] Switch Building\n" +
                         $"[{exitKey}] Exit Build Mode";
                 }
             }
@@ -365,7 +366,7 @@ public class BuildModeUI : MonoBehaviour
                     $"[{rotateKey}] Rotate: {(int)rotation}°\n" +
                     $"• Auto-connects to nearby\n" +
                     $"  belts automatically\n" +
-                    $"[1-4] or Scroll: Switch\n" +
+                    $"[1-5] or Scroll: Switch\n" +
                     $"[{exitKey}] Exit Build Mode";
             }
         }
