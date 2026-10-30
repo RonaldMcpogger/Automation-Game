@@ -111,7 +111,8 @@ public class BuildController : MonoBehaviour
     private Mesh previewSplineMesh;
     private GameObject previewBuildingObj;
 
-    private BuildModeUI buildUI;
+    private BuildTabCatalog buildTabCatalog;
+    private FactoryData selectedFactoryData;
 
     // FPSCore InputManager Actions
     private InputAction buildModeAction;
@@ -136,32 +137,31 @@ public class BuildController : MonoBehaviour
 
     private void ResolveBuildCatalog()
     {
-        if (buildableFactories != null && buildableFactories.Length >= 5)
+        if (buildableFactories != null && buildableFactories.Length > 0)
             return;
 
         var loadedDefinitions = Resources.LoadAll<FactoryData>("FactoryData");
         if (loadedDefinitions == null || loadedDefinitions.Length == 0)
             return;
 
-        buildableFactories = new FactoryData[5];
-        foreach (var definition in loadedDefinitions)
+        Array.Sort(loadedDefinitions, (left, right) =>
         {
-            if (definition == null)
-                continue;
-            int index = (int)definition.kind;
-            if (index >= 0 && index < buildableFactories.Length)
-                buildableFactories[index] = definition;
-        }
+            if (left == null) return 1;
+            if (right == null) return -1;
+            int kindOrder = left.kind.CompareTo(right.kind);
+            return kindOrder != 0 ? kindOrder : string.Compare(left.DisplayName, right.DisplayName, StringComparison.Ordinal);
+        });
+        buildableFactories = loadedDefinitions;
+        selectedFactoryData = GetFactoryData(SelectedType);
     }
 
     private void Start()
     {
         RegisterInputManagerActions();
 
-        if (buildUI == null)
-            buildUI = BuildModeUI.Create(transform, OnSlotClicked, sidebarOnRight);
-
+        buildTabCatalog = BuildTabCatalog.FindOrCreate(OnCatalogFactorySelected, BeginCatalogBuild);
         RefreshBuildCatalogUI();
+        buildTabCatalog?.SetVisible(false);
     }
 
     private void RegisterInputManagerActions()
@@ -203,7 +203,12 @@ public class BuildController : MonoBehaviour
 
         if (togglePressed)
         {
-            SetBuildModeActive(!IsBuildModeActive);
+            if (IsBuildModeActive)
+                SetBuildModeActive(false);
+            else if (buildTabCatalog != null && buildTabCatalog.IsVisible)
+                buildTabCatalog.SetVisible(false);
+            else
+                OpenBuildTab();
             return;
         }
 
@@ -235,7 +240,7 @@ public class BuildController : MonoBehaviour
     private void HandleSelectionInput()
     {
         int hotbar = IInput.HotbarPressedIndex;
-        if (hotbar >= 0 && hotbar < 5)
+        if (buildableFactories != null && hotbar >= 0 && hotbar < buildableFactories.Length)
         {
             SetSelectedType((BuildableType)hotbar);
             return;
@@ -256,24 +261,26 @@ public class BuildController : MonoBehaviour
         else if (Mouse.current != null)
             scroll = Mouse.current.scroll.ReadValue().y;
 
+        if (buildableFactories == null || buildableFactories.Length == 0)
+            return;
+
         if (scroll > 0.1f)
         {
-            int next = ((int)SelectedType - 1 + 5) % 5;
-            SetSelectedType((BuildableType)next);
+            SelectCatalogIndex((GetSelectedCatalogIndex() - 1 + buildableFactories.Length) % buildableFactories.Length);
         }
         else if (scroll < -0.1f)
         {
-            int next = ((int)SelectedType + 1) % 5;
-            SetSelectedType((BuildableType)next);
+            SelectCatalogIndex((GetSelectedCatalogIndex() + 1) % buildableFactories.Length);
         }
     }
 
     public void SetSelectedType(BuildableType type)
     {
-        if (SelectedType == type)
+        if (SelectedType == type && selectedFactoryData != null && selectedFactoryData.kind == (FactoryKind)type)
             return;
 
         SelectedType = type;
+        selectedFactoryData = GetFactoryData(type);
         conveyorHasStart = false;
         activeStartMachine = null;
         conveyorStartSnap = default;
@@ -283,22 +290,81 @@ public class BuildController : MonoBehaviour
 
     private void OnSlotClicked(int slotIndex)
     {
-        if (slotIndex >= 0 && slotIndex <= 4)
-            SetSelectedType((BuildableType)slotIndex);
+        SelectCatalogIndex(slotIndex);
+    }
+
+    private void OpenBuildTab()
+    {
+        if (buildTabCatalog == null)
+            buildTabCatalog = BuildTabCatalog.FindOrCreate(OnCatalogFactorySelected, BeginCatalogBuild);
+
+        RefreshBuildCatalogUI();
+        buildTabCatalog?.SetVisible(true);
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+
+    private void OnCatalogFactorySelected(int catalogIndex)
+    {
+        SelectCatalogIndex(catalogIndex);
+    }
+
+    private void BeginCatalogBuild()
+    {
+        if (selectedFactoryData == null)
+            return;
+
+        buildTabCatalog?.SetVisible(false);
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+        SetBuildModeActive(true);
+    }
+
+    private void SelectCatalogIndex(int catalogIndex)
+    {
+        if (buildableFactories == null || catalogIndex < 0 || catalogIndex >= buildableFactories.Length)
+            return;
+
+        FactoryData definition = buildableFactories[catalogIndex];
+        if (definition == null)
+            return;
+
+        selectedFactoryData = definition;
+        SelectedType = (BuildableType)definition.kind;
+        conveyorHasStart = false;
+        activeStartMachine = null;
+        conveyorStartSnap = default;
+        conveyorStartDirection = Vector3.zero;
+        UpdatePreviewMesh();
+    }
+
+    private int GetSelectedCatalogIndex()
+    {
+        if (buildableFactories == null || buildableFactories.Length == 0)
+            return 0;
+
+        for (int i = 0; i < buildableFactories.Length; i++)
+            if (buildableFactories[i] == selectedFactoryData)
+                return i;
+
+        return 0;
     }
 
     private FactoryData GetFactoryData(BuildableType type)
     {
-        int index = (int)type;
-        if (buildableFactories == null || index < 0 || index >= buildableFactories.Length)
-            return null;
-        return buildableFactories[index];
+        if (selectedFactoryData != null && selectedFactoryData.kind == (FactoryKind)type)
+            return selectedFactoryData;
+        if (buildableFactories != null)
+            foreach (var definition in buildableFactories)
+                if (definition != null && definition.kind == (FactoryKind)type)
+                    return definition;
+        return null;
     }
 
     private void RefreshBuildCatalogUI()
     {
-        if (buildUI != null)
-            buildUI.SetFactoryDefinitions(buildableFactories);
+        if (buildTabCatalog != null)
+            buildTabCatalog.SetDefinitions(buildableFactories);
     }
 
     private void HandleRotationInput()
@@ -671,11 +737,7 @@ public class BuildController : MonoBehaviour
 
     private void UpdateUI()
     {
-        if (buildUI != null)
-        {
-            string snapName = currentSnap.isSnapped ? currentSnap.targetName : null;
-            buildUI.UpdateDisplay((int)SelectedType, BuildingRotation, conveyorHasStart, snapName, conveyorRadius);
-        }
+        // The factory catalog is shown before placement; placement itself uses the world preview.
     }
 
     public void SetBuildModeActive(bool active)
@@ -693,14 +755,8 @@ public class BuildController : MonoBehaviour
         if (previewRoot != null)
             previewRoot.SetActive(false);
 
-        if (buildUI == null)
-            buildUI = BuildModeUI.Create(transform, OnSlotClicked, sidebarOnRight);
-
-        if (buildUI != null)
-        {
-            RefreshBuildCatalogUI();
-            buildUI.SetVisible(active);
-        }
+        if (active)
+            buildTabCatalog?.SetVisible(false);
     }
 
     #region Building Spawning
@@ -1330,14 +1386,13 @@ public class BuildController : MonoBehaviour
     {
         if (IsBuildModeActive)
             SetBuildModeActive(false);
+        buildTabCatalog?.SetVisible(false);
     }
 
     private void OnDestroy()
     {
         if (previewRoot != null)
             Destroy(previewRoot);
-        if (buildUI != null && buildUI.gameObject != null)
-            Destroy(buildUI.gameObject);
     }
 
     #endregion

@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// Presses iron ingots into iron plates upon contact, held delivery, or conveyor feed.
+/// Presses iron ingots into iron plates upon contact, held delivery, or conveyor feed. // must check if it is ingots
 /// </summary>
 public class Presser : FactoryMachine, IHeldTargetReceiver
 {
