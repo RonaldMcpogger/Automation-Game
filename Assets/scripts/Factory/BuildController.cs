@@ -77,6 +77,7 @@ public class BuildController : MonoBehaviour
     [Header("Prefabs (Optional overrides)")]
     public FactoryItem ingotPrefab;
 
+   
     [Header("Data-Driven Build Catalog")]
     [Tooltip("Optional definitions, in the same order as build slots. When assigned, their names and recipes drive build mode.")]
     public FactoryData[] buildableFactories;

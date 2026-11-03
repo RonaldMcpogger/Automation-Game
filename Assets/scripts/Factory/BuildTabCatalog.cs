@@ -1,4 +1,5 @@
 using System;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
@@ -19,10 +20,17 @@ public class BuildTabCatalog : MonoBehaviour
     private Button buildButton;
     [SerializeField]
     private Image selectedEntry;
-    private bool buildButtonConfigured;
 
-    //why is this here? its not needed because of how buttons are functioned
-    private readonly Color normalColor = new(0.12f, 0.16f, 0.2f, 0.95f);
+    //generatedEntries is used to keep track of the entries created at runtime so they can be destroyed when the catalog is updated.
+    private readonly System.Collections.Generic.List<GameObject> generatedEntries = new();
+    private readonly System.Collections.Generic.Dictionary<Image, Color> entryNormalColors = new();
+    private bool buildButtonConfigured;
+    [SerializeField]
+    private TextMeshProUGUI FactoryNameDisplay;
+
+    [SerializeField]
+    private GameObject DataEntryPrefab;
+
     private readonly Color hoverColor = new(0.18f, 0.45f, 0.7f, 0.95f);
 
     
@@ -64,12 +72,14 @@ public class BuildTabCatalog : MonoBehaviour
         if (content == null)
             return;
 
-        for (int i = content.childCount - 1; i >= 0; i--)
-            Destroy(content.GetChild(i).gameObject);
+        ClearGeneratedEntries();
 
         selectedEntry = null;
+        entryNormalColors.Clear();
         if (buildButton != null)
             buildButton.interactable = false;
+        if (FactoryNameDisplay != null)
+            FactoryNameDisplay.text = string.Empty;
 
         if (definitions == null)
             return;
@@ -158,49 +168,63 @@ public class BuildTabCatalog : MonoBehaviour
 
     private void CreateEntry(FactoryData definition, int index)
     {
-        var entry = new GameObject(definition.DisplayName, typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
-        entry.transform.SetParent(content, false);
-        var element = entry.GetComponent<LayoutElement>();
-        element.preferredHeight = 72f;
+        GameObject entry;
+        if (DataEntryPrefab != null)
+        {
+            entry = Instantiate(DataEntryPrefab, content);
+        }
+        else
+        {
+            // Keep a basic fallback for scenes that have not assigned the template yet.
+            entry = new GameObject("Building Selectable", typeof(RectTransform), typeof(Image), typeof(Button));
+            entry.transform.SetParent(content, false);
+        }
+
+        generatedEntries.Add(entry);
+        entry.name = definition.DisplayName;
+        entry.SetActive(true);
 
         var image = entry.GetComponent<Image>();
-        image.color = normalColor;
         var button = entry.GetComponent<Button>();
-        button.targetGraphic = image;
-        var colors = button.colors;
-        colors.normalColor = Color.white;
-        colors.highlightedColor = hoverColor;
-        colors.pressedColor = hoverColor;
-        button.colors = colors;
-        button.onClick.AddListener(() => SelectEntry(image, index));
+        if (button == null)
+        {
+            Debug.LogWarning($"Build entry template '{DataEntryPrefab.name}' needs a Button component.");
+            return;
+        }
 
-        var labelObject = new GameObject("Label", typeof(RectTransform), typeof(Text));
-        labelObject.transform.SetParent(entry.transform, false);
-        var labelRect = labelObject.GetComponent<RectTransform>();
-        labelRect.anchorMin = Vector2.zero;
-        labelRect.anchorMax = Vector2.one;
-        labelRect.offsetMin = new Vector2(16f, 6f);
-        labelRect.offsetMax = new Vector2(-16f, -6f);
-        var label = labelObject.GetComponent<Text>();
-        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        label.fontSize = 16;
-        label.alignment = TextAnchor.MiddleLeft;
-        label.color = Color.white;
-        label.raycastTarget = false;
-        label.text = string.IsNullOrWhiteSpace(definition.description)
-            ? definition.DisplayName
-            : $"{definition.DisplayName}\n<size=12>{definition.description}</size>";
+        if (image != null && button.targetGraphic == null)
+            button.targetGraphic = image;
+        if (image != null)
+            entryNormalColors[image] = image.color;
+
+        button.onClick.AddListener(() => SelectEntry(image, index, definition));
+
+        TextMeshProUGUI label = entry.GetComponentInChildren<TextMeshProUGUI>(true);
+        if (label != null)
+            label.text = definition.DisplayName;
     }
 
-    private void SelectEntry(Image entry, int index)
+    private void SelectEntry(Image entry, int index, FactoryData definition)
     {
-        if (selectedEntry != null)
+        if (selectedEntry != null && entryNormalColors.TryGetValue(selectedEntry, out Color normalColor))
             selectedEntry.color = normalColor;
         selectedEntry = entry;
-        selectedEntry.color = hoverColor;
+        if (selectedEntry != null)
+            selectedEntry.color = hoverColor;
         if (buildButton != null)
             buildButton.interactable = true;
+        if (FactoryNameDisplay != null)
+            FactoryNameDisplay.text = definition.DisplayName;
         onSelected?.Invoke(index);
+    }
+
+    private void ClearGeneratedEntries()
+    {
+        foreach (GameObject entry in generatedEntries)
+            if (entry != null)
+                Destroy(entry);
+
+        generatedEntries.Clear();
     }
 
     private void CreateBuildButton()
@@ -217,17 +241,16 @@ public class BuildTabCatalog : MonoBehaviour
         buildButton = buttonObject.GetComponent<Button>();
         buildButton.targetGraphic = image;
 
-        var labelObject = new GameObject("Label", typeof(RectTransform), typeof(Text));
+        var labelObject = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
         labelObject.transform.SetParent(buttonObject.transform, false);
         var labelRect = labelObject.GetComponent<RectTransform>();
         labelRect.anchorMin = Vector2.zero;
         labelRect.anchorMax = Vector2.one;
         labelRect.offsetMin = labelRect.offsetMax = Vector2.zero;
-        var label = labelObject.GetComponent<Text>();
-        label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        var label = labelObject.GetComponent<TextMeshProUGUI>();
         label.fontSize = 18;
-        label.fontStyle = FontStyle.Bold;
-        label.alignment = TextAnchor.MiddleCenter;
+        label.fontStyle = FontStyles.Bold;
+        label.alignment = TextAlignmentOptions.Center;
         label.color = Color.white;
         label.text = "BUILD";
         label.raycastTarget = false;
