@@ -1,18 +1,31 @@
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
 /// <summary>Populates the scene's BuildTab with the project's FactoryData definitions.</summary>
 public class BuildTabCatalog : MonoBehaviour
 {
+    [SerializeField]
     private CanvasGroup canvasGroup;
+    [SerializeField]
     private RectTransform content;
+    [SerializeField]
     private Action<int> onSelected;
+    [SerializeField]
     private Action onBuildRequested;
+    [SerializeField]
     private Button buildButton;
+    [SerializeField]
     private Image selectedEntry;
+    private bool buildButtonConfigured;
+
+    //why is this here? its not needed because of how buttons are functioned
     private readonly Color normalColor = new(0.12f, 0.16f, 0.2f, 0.95f);
     private readonly Color hoverColor = new(0.18f, 0.45f, 0.7f, 0.95f);
+
+    
     public bool IsVisible => canvasGroup != null && canvasGroup.alpha > 0.01f;
 
     public static BuildTabCatalog FindOrCreate(Action<int> onSelected, Action onBuildRequested)
@@ -93,7 +106,11 @@ public class BuildTabCatalog : MonoBehaviour
 
     private void Initialize()
     {
+        EnsureUiInput();
         canvasGroup ??= GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
+        if (buildButton != null)
+            ConfigureBuildButton();
+
         if (content != null)
             return;
 
@@ -117,6 +134,26 @@ public class BuildTabCatalog : MonoBehaviour
 
         if (buildButton == null)
             CreateBuildButton();
+        ConfigureBuildButton();
+    }
+
+    // The catalog creates UGUI Buttons at runtime, so its canvas must raycast and
+    // the scene needs an EventSystem that understands the Input System.
+    private void EnsureUiInput()
+    {
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas != null && canvas.GetComponent<GraphicRaycaster>() == null)
+            canvas.gameObject.AddComponent<GraphicRaycaster>();
+
+        EventSystem eventSystem = FindAnyObjectByType<EventSystem>(FindObjectsInactive.Include);
+        if (eventSystem == null)
+        {
+            var eventSystemObject = new GameObject("EventSystem", typeof(EventSystem));
+            eventSystem = eventSystemObject.GetComponent<EventSystem>();
+        }
+
+        if (eventSystem.GetComponent<InputSystemUIInputModule>() == null)
+            eventSystem.gameObject.AddComponent<InputSystemUIInputModule>().AssignDefaultActions();
     }
 
     private void CreateEntry(FactoryData definition, int index)
@@ -179,7 +216,6 @@ public class BuildTabCatalog : MonoBehaviour
         image.color = hoverColor;
         buildButton = buttonObject.GetComponent<Button>();
         buildButton.targetGraphic = image;
-        buildButton.onClick.AddListener(() => onBuildRequested?.Invoke());
 
         var labelObject = new GameObject("Label", typeof(RectTransform), typeof(Text));
         labelObject.transform.SetParent(buttonObject.transform, false);
@@ -195,5 +231,15 @@ public class BuildTabCatalog : MonoBehaviour
         label.color = Color.white;
         label.text = "BUILD";
         label.raycastTarget = false;
+    }
+
+    // Scene-authored buttons need the same callback as buttons created at runtime.
+    private void ConfigureBuildButton()
+    {
+        if (buildButton == null || buildButtonConfigured)
+            return;
+
+        buildButton.onClick.AddListener(() => onBuildRequested?.Invoke());
+        buildButtonConfigured = true;
     }
 }

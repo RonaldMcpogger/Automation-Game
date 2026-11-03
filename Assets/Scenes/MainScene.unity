@@ -985,7 +985,7 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 879659535}
   m_HandleRect: {fileID: 879659534}
   m_Direction: 2
-  m_Value: 0
+  m_Value: 1
   m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
@@ -2961,8 +2961,8 @@ MonoBehaviour:
   inventoryText: {fileID: 0}
   machineText: {fileID: 0}
   promptText: {fileID: 0}
-  oreCapacity: 10
-  interactionRange: 4
+  oreCapacity: 20
+  interactionRange: 3
 --- !u!114 &1294883528
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3000,7 +3000,8 @@ MonoBehaviour:
   ghostMaterial: {fileID: 0}
   ingotPrefab: {fileID: 0}
   buildableFactories: []
-  sidebarOnRight: 1
+  sidebarOnRight: 0
+  buildTabCatalog: {fileID: 0}
 --- !u!1 &1304588028
 GameObject:
   m_ObjectHideFlags: 0
@@ -3539,7 +3540,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: -0.00008645317}
   m_SizeDelta: {x: 0, y: 300}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1402763791
@@ -3574,6 +3575,26 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 499162637317337013, guid: 93dd8eb14fb229a448644b0348a3bbbe, type: 3}
+      propertyPath: entries.Array.size
+      value: 18
+      objectReference: {fileID: 0}
+    - target: {fileID: 499162637317337013, guid: 93dd8eb14fb229a448644b0348a3bbbe, type: 3}
+      propertyPath: entries.Array.data[18].actionName
+      value: Hotbar9
+      objectReference: {fileID: 0}
+    - target: {fileID: 499162637317337013, guid: 93dd8eb14fb229a448644b0348a3bbbe, type: 3}
+      propertyPath: entries.Array.data[18].displayName
+      value: Hotbar9
+      objectReference: {fileID: 0}
+    - target: {fileID: 499162637317337013, guid: 93dd8eb14fb229a448644b0348a3bbbe, type: 3}
+      propertyPath: entries.Array.data[18].defaults.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 499162637317337013, guid: 93dd8eb14fb229a448644b0348a3bbbe, type: 3}
+      propertyPath: entries.Array.data[18].defaults.Array.data[0].path
+      value: <Keyboard>/9
+      objectReference: {fileID: 0}
     - target: {fileID: 3329779546541759785, guid: 93dd8eb14fb229a448644b0348a3bbbe, type: 3}
       propertyPath: m_LocalPosition.x
       value: -7.30412
@@ -4440,6 +4461,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6c4d871b3a234d9a9203de413fa2b9e8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: AutomationGame::BuildTabCatalog
+  canvasGroup: {fileID: 1864282686}
+  content: {fileID: 1402763790}
+  buildButton: {fileID: 695757965}
+  selectedEntry: {fileID: 0}
 --- !u!1 &1895411436
 GameObject:
   m_ObjectHideFlags: 0
@@ -4554,7 +4579,7 @@ GameObject:
   - component: {fileID: 1901152260}
   - component: {fileID: 1901152259}
   m_Layer: 5
-  m_Name: Build Tab
+  m_Name: Build list
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

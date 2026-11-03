@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -7,7 +8,7 @@ using UnityEngine.Splines;
 
 using UnityEngine.Splines.ExtrusionShapes; // needed to change spline shape from circle to square for conveyor preview and construction
 
-
+//this needs to change where instead of making enums, it should be a list where it is easy to drag scriptable objects inside
 public enum BuildableType
 {
     ConveyorBelt = 0,
@@ -17,11 +18,6 @@ public enum BuildableType
     Presser = 4
 }
 
-/// <summary>
-/// First-person build mode controller integrated with FPSCore's InputManager.
-/// Features smart magnetic snapping to Smelter output ports, Submission Bin intakes,
-/// and existing conveyor endpoints.
-/// </summary>
 public class BuildController : MonoBehaviour
 {
     public struct SnapTarget
@@ -91,11 +87,17 @@ public class BuildController : MonoBehaviour
     public bool IsBuildModeActive { get; private set; }
     public BuildableType SelectedType { get; private set; } = BuildableType.ConveyorBelt;
     public float BuildingRotation { get; private set; } = 0f;
+    
+    
     public bool ConveyorHasStart => conveyorHasStart;
     public Vector3 ConveyorStartPoint => conveyorStartPoint;
 
     private bool conveyorHasStart;
     private Vector3 conveyorStartPoint;
+
+
+
+    //remove or change this, this factorymachine only works for the smelter. there will be other machines added in the future with their own ui configuration and methods of changing with specific requirements
     private FactoryMachine activeStartMachine;
     // Retains the start attachment so the final belt and its preview use the same tangent direction.
     private SnapTarget conveyorStartSnap;
@@ -110,7 +112,7 @@ public class BuildController : MonoBehaviour
     private SplineContainer previewSplineContainer;
     private Mesh previewSplineMesh;
     private GameObject previewBuildingObj;
-
+    [SerializeField]
     private BuildTabCatalog buildTabCatalog;
     private FactoryData selectedFactoryData;
 
@@ -193,12 +195,12 @@ public class BuildController : MonoBehaviour
         UpdateUI();
     }
 
-    private void HandleToggleInput()
+    private void HandleToggleInput() // condition for buildmode
     {
         bool togglePressed = false;
-        if (buildModeAction != null && buildModeAction.WasPressedThisFrame())
+        if (buildModeAction != null && buildModeAction.WasPressedThisFrame()) // button present and was pressed this frame trigger
             togglePressed = true;
-        else if (Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame)
+        else if (Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame) // this but for keyboard
             togglePressed = true;
 
         if (togglePressed)
@@ -206,7 +208,10 @@ public class BuildController : MonoBehaviour
             if (IsBuildModeActive)
                 SetBuildModeActive(false);
             else if (buildTabCatalog != null && buildTabCatalog.IsVisible)
+            {
+                InputManager.Instance?.ExitUIMode(this);
                 buildTabCatalog.SetVisible(false);
+            }
             else
                 OpenBuildTab();
             return;
@@ -293,7 +298,7 @@ public class BuildController : MonoBehaviour
         SelectCatalogIndex(slotIndex);
     }
 
-    private void OpenBuildTab()
+    private void OpenBuildTab() // the buildTab
     {
         if (buildTabCatalog == null)
             buildTabCatalog = BuildTabCatalog.FindOrCreate(OnCatalogFactorySelected, BeginCatalogBuild);
@@ -302,6 +307,7 @@ public class BuildController : MonoBehaviour
         buildTabCatalog?.SetVisible(true);
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
+        InputManager.Instance?.EnterUIMode(this);
     }
 
     private void OnCatalogFactorySelected(int catalogIndex)
@@ -309,12 +315,14 @@ public class BuildController : MonoBehaviour
         SelectCatalogIndex(catalogIndex);
     }
 
-    private void BeginCatalogBuild()
+    private void BeginCatalogBuild() // begin build mode from the build tab, this is where the build mode is activated and the cursor is locked
     {
         if (selectedFactoryData == null)
             return;
 
         buildTabCatalog?.SetVisible(false);
+        InputManager.Instance?.ExitUIMode(this); // 
+
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         SetBuildModeActive(true);
@@ -407,7 +415,7 @@ public class BuildController : MonoBehaviour
             conveyorRadius = 0.35f;
     }
 
-    private void HandlePlacement()
+    private void HandlePlacement() // placement stuff needs to be revamped due to build tab and not using the build sidebar
     {
         bool cancelPressed = false;
         if (buildCancelAction != null && buildCancelAction.WasPressedThisFrame())
@@ -708,7 +716,7 @@ public class BuildController : MonoBehaviour
 
             Quaternion rot = Quaternion.Euler(0, BuildingRotation, 0);
             previewBuildingObj.transform.rotation = rot;
-
+            //rechange this to use scriptable object type 
             if (SelectedType == BuildableType.Smelter)
                 previewBuildingObj.transform.position = hit.point + Vector3.up * 1.2f;
             else if (SelectedType == BuildableType.SubmissionBin)
@@ -1387,6 +1395,7 @@ public class BuildController : MonoBehaviour
         if (IsBuildModeActive)
             SetBuildModeActive(false);
         buildTabCatalog?.SetVisible(false);
+        InputManager.Instance?.ExitUIMode(this);
     }
 
     private void OnDestroy()
