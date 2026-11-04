@@ -302,6 +302,11 @@ public class Conveyor : MonoBehaviour
     private void Evaluate(float t, out Vector3 position, out Vector3 tangent, out Vector3 up)
     {
         SplineUtility.Evaluate(ConveyerSpline.Spline, t, out float3 localPosition, out float3 localTangent, out float3 localUp);
+        // Straight two-knot belts can have zero Bezier handles at their endpoints.
+        // A short secant still gives a valid exit direction for rotation and release momentum.
+        if (math.lengthsq(localTangent) < 0.00000001f)
+            localTangent = SplineUtility.EvaluatePosition(ConveyerSpline.Spline, Mathf.Clamp01(t + 0.01f))
+                - SplineUtility.EvaluatePosition(ConveyerSpline.Spline, Mathf.Clamp01(t - 0.01f));
         position = ConveyerSpline.transform.TransformPoint((Vector3)localPosition);
         tangent = ConveyerSpline.transform.TransformDirection((Vector3)localTangent).normalized;
         up = ConveyerSpline.transform.TransformDirection((Vector3)localUp).normalized;

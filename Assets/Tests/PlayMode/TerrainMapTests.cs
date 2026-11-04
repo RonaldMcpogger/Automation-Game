@@ -23,11 +23,11 @@ public class TerrainMapTests
     {
         var terrain = map.Terrain;
         Assert.That(Object.FindObjectsByType<Terrain>().Length, Is.EqualTo(1));
-        Assert.That(terrain.terrainData.heightmapResolution, Is.EqualTo(257));
+        Assert.That(terrain.terrainData.heightmapResolution, Is.EqualTo(map.settings.HeightmapResolution));
         Assert.That(map.GetComponent<TerrainCollider>().terrainData, Is.SameAs(terrain.terrainData));
         var legacy = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include).Single(x => x.name == "Land");
         Assert.That(legacy.gameObject.activeSelf, Is.False, "The old ground is preserved without a duplicate collider.");
-        var demoRoot = Object.FindAnyObjectByType<FactoryPlayer>().machine.transform.parent;
+        var demoRoot = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include).Single(x => x.name == "First Factory");
         var stations = demoRoot.GetComponentsInChildren<FactoryInteractable>(true);
         Assert.That(stations.Length, Is.EqualTo(2), "Both preserved demo stations must be checked, even while inactive.");
         foreach (var factory in stations)
@@ -46,7 +46,9 @@ public class TerrainMapTests
     [UnityTest]
     public IEnumerator ElevatedGroundSupportsBuildingAndHeightRelativeSnapping()
     {
-        Assert.That(Physics.Raycast(new Vector3(80, 40, 60), Vector3.down, out var hit, 50f), Is.True);
+        Assert.That(map.GetComponent<TerrainCollider>().Raycast(
+            new Ray(new Vector3(80, map.settings.verticalSize + 10f, 60), Vector3.down), out var hit,
+            map.settings.verticalSize * 2f), Is.True);
         Assert.That(hit.collider, Is.TypeOf<TerrainCollider>());
         Assert.That(hit.point.y, Is.GreaterThan(0.5f));
         var builder = Object.FindAnyObjectByType<BuildController>();
@@ -63,10 +65,11 @@ public class TerrainMapTests
     public IEnumerator FiniteMapHasBoundaryCollidersAndCorrectWorldBounds()
     {
         Assert.That(map.Contains(Vector3.zero), Is.True);
-        Assert.That(map.Contains(new Vector3(200, 0, 0)), Is.False);
+        Assert.That(map.Contains(map.transform.position + map.Terrain.terrainData.size + Vector3.right * 10f), Is.False);
         var boundaries = map.transform.Find("Map Bounds").GetComponentsInChildren<BoxCollider>();
         Assert.That(boundaries.Length, Is.EqualTo(4));
-        Assert.That(Physics.Raycast(new Vector3(-126, 20, 0), Vector3.left, out var hit, 5f, 1 << 2), Is.True);
+        Assert.That(Physics.Raycast(new Vector3(map.transform.position.x + 2f,
+            map.transform.position.y + map.settings.verticalSize - 4f, 0), Vector3.left, out var hit, 5f, 1 << 2), Is.True);
         Assert.That(hit.collider.name, Is.EqualTo("West"));
         yield return null;
     }

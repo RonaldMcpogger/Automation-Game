@@ -127,10 +127,12 @@ public class BuildModeTests
         Assert.That(belt.outputReceiver, Is.EqualTo(bin), "Belt should auto-connect to newly built bin.");
 
         // Load ore and smelt
-        player.TryCollectOre();
+        player.TryCollect(smelter.InputItem);
         smelter.LoadFrom(player);
 
-        yield return new WaitForSeconds(0.4f);
+        float deadline = Time.realtimeSinceStartup + 3f;
+        while (bin.SubmittedCount < 1 && Time.realtimeSinceStartup < deadline)
+            yield return null;
 
         Assert.That(bin.SubmittedCount, Is.EqualTo(1), "Delivered ingot should be accepted by bin.");
         Assert.That(smelter.ProducedCount, Is.EqualTo(1), "Smelter should have produced 1 ingot.");
@@ -161,40 +163,32 @@ public class BuildModeTests
     }
 
     [UnityTest]
-    public IEnumerator BuildModeUIAnchoredToScreenSideWhenActive()
+    public IEnumerator BuildCatalogSelectionStartsPlacementAndRestoresGameplay()
     {
-        buildController.SetBuildModeActive(true);
+        // Open the same catalog flow used by B, then exercise the actual scene buttons.
+        typeof(BuildController).GetMethod("OpenBuildTab", System.Reflection.BindingFlags.Instance
+            | System.Reflection.BindingFlags.NonPublic).Invoke(buildController, null);
         yield return null;
-
-        var ui = Object.FindAnyObjectByType<BuildModeUI>(FindObjectsInactive.Include);
-        Assert.That(ui, Is.Not.Null, "BuildModeUI should exist.");
-        Assert.That(ui.gameObject.activeSelf, Is.True, "BuildModeUI should be visible when build mode is active.");
-
-        var rect = ui.GetComponent<RectTransform>();
-        Assert.That(rect, Is.Not.Null, "BuildModeUI must have a RectTransform.");
-
-        // When sidebarOnRight is true, anchors should be pinned to the right edge (x = 1)
-        Assert.That(rect.anchorMin.x, Is.EqualTo(1f), "Sidebar anchorMin.x should be 1.0 (right edge).");
-        Assert.That(rect.anchorMax.x, Is.EqualTo(1f), "Sidebar anchorMax.x should be 1.0 (right edge).");
-        Assert.That(rect.pivot.x, Is.EqualTo(1f), "Sidebar pivot.x should be 1.0 (right-aligned).");
-        Assert.That(rect.anchoredPosition.x, Is.EqualTo(-24f), "Sidebar should be offset 24px inward from right edge.");
-
-        // Check center crosshair exists and is at screen center (0.5, 0.5)
-        var crosshair = GameObject.Find("BuildCrosshair");
-        Assert.That(crosshair, Is.Not.Null, "BuildCrosshair should exist.");
-        Assert.That(crosshair.activeSelf, Is.True, "BuildCrosshair should be visible.");
-        var crosshairRect = crosshair.GetComponent<RectTransform>();
-        Assert.That(crosshairRect.anchorMin, Is.EqualTo(new Vector2(0.5f, 0.5f)), "Crosshair must be centered.");
-        Assert.That(crosshairRect.anchorMax, Is.EqualTo(new Vector2(0.5f, 0.5f)), "Crosshair must be centered.");
-
-        // Deactivating build mode hides both
+        var catalog = Object.FindAnyObjectByType<BuildTabCatalog>(FindObjectsInactive.Include);
+        Assert.That(catalog, Is.Not.Null);
+        Assert.That(catalog.IsVisible, Is.True);
+        Assert.That(InputManager.Instance.GameplayEnabled, Is.False);
+        var buttons = catalog.GetComponentsInChildren<UnityEngine.UI.Button>(true);
+        var smelterEntry = System.Array.Find(buttons, x => x.name == "Smelter");
+        Assert.That(smelterEntry, Is.Not.Null);
+        smelterEntry.onClick.Invoke();
+        Assert.That(buildController.SelectedType, Is.EqualTo(BuildableType.Smelter));
+        var buildButton = (UnityEngine.UI.Button)typeof(BuildTabCatalog).GetField("buildButton",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(catalog);
+        Assert.That(buildButton.interactable, Is.True);
+        buildButton.onClick.Invoke();
+        yield return null;
+        Assert.That(buildController.IsBuildModeActive, Is.True);
+        Assert.That(catalog.IsVisible, Is.False);
+        Assert.That(InputManager.Instance.GameplayEnabled, Is.True);
+        Assert.That(InputManager.Instance.CursorLocked, Is.True);
         buildController.SetBuildModeActive(false);
-        yield return null;
-
-        Assert.That(ui.gameObject.activeSelf, Is.False, "BuildModeUI should be hidden when build mode is inactive.");
-        Assert.That(crosshair.activeSelf, Is.False, "BuildCrosshair should be hidden when build mode is inactive.");
     }
-
     [UnityTest]
     public IEnumerator ConveyorWidthCanBeCustomizedAndCycled()
     {

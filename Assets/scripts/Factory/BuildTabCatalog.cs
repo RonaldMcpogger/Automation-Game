@@ -104,11 +104,16 @@ public class BuildTabCatalog : MonoBehaviour
 
     public void SetVisible(bool visible)
     {
-        Initialize();
+        // Hiding also happens during scene teardown. Never create UI/input objects on that path.
+        if (visible)
+            Initialize();
+        else
+            canvasGroup ??= GetComponent<CanvasGroup>();
         if (canvasGroup == null)
             return;
 
-        gameObject.SetActive(true);
+        if (visible)
+            gameObject.SetActive(true);
         canvasGroup.alpha = visible ? 1f : 0f;
         canvasGroup.interactable = visible;
         canvasGroup.blocksRaycasts = visible;

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -19,20 +20,23 @@ public class FirstFactoryTests
         yield return null;
         player = Object.FindAnyObjectByType<FactoryPlayer>();
         Assert.That(player, Is.Not.Null);
-        Assert.That(player.machine, Is.Not.Null);
         // MainScene now starts as a building sandbox. Enable the preserved demo only for these tests.
-        player.machine.transform.parent.gameObject.SetActive(true);
+        var demo = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include).Single(x => x.name == "First Factory");
+        demo.gameObject.SetActive(true);
         yield return null;
-        spot = Object.FindAnyObjectByType<ResourceSpot>();
-        machine = player.machine;
-        bin = player.submissionBin;
+        spot = demo.GetComponentInChildren<ResourceSpot>();
+        machine = demo.GetComponentInChildren<FactoryMachine>();
+        bin = demo.GetComponentInChildren<SubmissionBin>();
+        player.machine = machine;
+        player.submissionBin = bin;
+        player.objectiveText = demo.GetComponentsInChildren<UnityEngine.UI.Text>(true).Single(x => x.name == "Objective");
         belt = machine.outputBelt;
         machine.processingSeconds = 0.05f;
         belt.speed = 120f;
         Assert.That(Object.FindObjectsByType<FirstPersonController>().Length, Is.EqualTo(1));
-        Assert.That(Object.FindObjectsByType<ResourceSpot>().Length, Is.EqualTo(1));
-        Assert.That(Object.FindObjectsByType<FactoryMachine>().Length, Is.EqualTo(1));
-        Assert.That(Object.FindObjectsByType<SubmissionBin>().Length, Is.EqualTo(1));
+        Assert.That(demo.GetComponentsInChildren<ResourceSpot>().Length, Is.EqualTo(1));
+        Assert.That(demo.GetComponentsInChildren<FactoryMachine>().Length, Is.EqualTo(1));
+        Assert.That(demo.GetComponentsInChildren<SubmissionBin>().Length, Is.EqualTo(1));
     }
 
     [UnityTest]
@@ -45,7 +49,11 @@ public class FirstFactoryTests
             yield return new WaitForSeconds(0.06f);
         }
         Assert.That(player.OreCount, Is.EqualTo(10));
+        // The scene's pouch capacity is configurable; verify it without changing the ten-item recipe test.
+        for (int i = 10; i < player.oreCapacity; i++)
+            player.TryCollectOre();
         Assert.That(player.TryCollectOre(), Is.False, "The pouch must respect its capacity.");
+        player.TakeOre(player.oreCapacity - 10);
         Assert.That(machine.LoadFrom(player), Is.EqualTo(10));
         Assert.That(player.OreCount, Is.Zero);
         yield return WaitForDeliveries(10);
@@ -83,7 +91,8 @@ public class FirstFactoryTests
         Assert.That(machine.ProducedCount, Is.EqualTo(2));
         Assert.That(belt.ItemCount, Is.EqualTo(2));
         Assert.That(bin.SubmittedCount, Is.Zero);
-        var items = Object.FindObjectsByType<FactoryItem>();
+        var items = Object.FindObjectsByType<FactoryItem>()
+            .Where(item => Vector3.Distance(item.transform.position, bin.transform.position) < 3f).ToArray();
         Assert.That(items.Length, Is.EqualTo(2));
         Assert.That(Vector3.Distance(items[0].transform.position, items[1].transform.position),
             Is.GreaterThan(0.6f), "Queued ingots must remain separated.");

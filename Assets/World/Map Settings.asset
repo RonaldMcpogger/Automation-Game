@@ -14,14 +14,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: AutomationGame::MapGenerationSettings
   seed: 104729
   mapCenter: {x: 0, y: 0}
-  mapSize: {x: 256, y: 256}
-  heightmapPower: 8
-  verticalSize: 32
+  mapSize: {x: 1024, y: 1024}
+  heightmapPower: 9
+  verticalSize: 192
   depthBelowGround: 8
   clearingCenter: {x: -8, y: 0}
   clearingSize: {x: 112, y: 96}
   clearingBlend: 24
-  hillHeight: 14
-  noiseScale: 80
+  hillHeight: 20
+  noiseScale: 160
   octaves: 3
   persistence: 0.5
+  mountainCount: 7
+  mountainHeight: 130
+  mountainRadius: 150
+  resourceSpotCount: 48
+  resourceSpacing: 65
+  resourceMaxSlope: 16
+  resourceMaxElevation: 45
+  resourceEdgeMargin: 24
+  starterResourcePosition: {x: -42, y: 12}
