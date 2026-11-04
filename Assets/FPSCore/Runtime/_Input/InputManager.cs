@@ -198,8 +198,14 @@ public class InputManager : MonoBehaviour
     /// Interact is built in; any other value uses the extra action with the same name as the
     /// enum value (Grab, Scan...). Allocates: call on prompt change only, not per frame.
     /// </summary>
-    public string GetLabel(PromptAction action) =>
-        action == PromptAction.Interact ? BindingLabel(_interact) : GetLabel(action.ToString());
+    public string GetLabel(PromptAction action)
+    {
+        if (action == PromptAction.Interact)
+            return BindingLabel(_interact);
+        if (action == PromptAction.Grab)
+            return BindingLabel(GetExtraAction("Grab", "<Keyboard>/g", "<Gamepad>/rightTrigger"));
+        return GetLabel(action.ToString());
+    }
 
     /// <summary>Binding text of an extra action by name. Null if it was never added.</summary>
     public string GetLabel(string actionName) =>

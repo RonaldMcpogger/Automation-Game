@@ -6,6 +6,7 @@ using UnityEngine;
 public enum PromptAction
 {
     Interact,
+    Grab,
 
     // Add your Action Prompts Here.
     // HoldObject
@@ -13,7 +14,6 @@ public enum PromptAction
     // Etc.
 
     // Shop Keeper Action Prompts
-    // Grab,
     // Scan,
     // BoxStore,
     // Rotate, // furniture preview

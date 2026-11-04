@@ -46,7 +46,9 @@ public class Interactable : MonoBehaviour, IPromptSource
             {
                 new PromptEntry
                 {
-                    action = PromptAction.Interact,
+                    action = GetComponent<Carriable>() != null
+                        ? PromptAction.Grab
+                        : PromptAction.Interact,
                     text = promptText,
                     when = PromptContext.EmptyHands,
                 },

@@ -48,8 +48,8 @@ public static class IInput
         if (im == _owner)
             return true;
 
-        // Left click is shared by Grab, Scan and BoxStore: only one of them is active per held item.
-        _grab = im.GetExtraAction("Grab", "<Mouse>/leftButton", "<Gamepad>/rightTrigger");
+        // Grab is shared by pickup and throw: only one of them is active per held item.
+        _grab = im.GetExtraAction("Grab", "<Keyboard>/g", "<Gamepad>/rightTrigger");
         // Add your custom Resolve Action Mappings here
         // ...
 
@@ -93,6 +93,8 @@ public static class IInput
         CanRead && _grab.WasPressedThisFrame() && !_owner.WasRelockFrame;
 
     public static bool GrabHeld => CanRead && _grab.IsPressed();
+
+    public static bool GrabReleased => CanRead && _grab.WasReleasedThisFrame();
 
     // Shop Keeper Encapsulators Functions
     // Scanner shares left click with Grab (the grabber is idle while something is held).

@@ -65,7 +65,7 @@ public class Carrier : MonoBehaviour, IHandsFull
     [SerializeField]
     private HoldPose largePose = new HoldPose(new Vector3(0f, -0.5f, 0.5f), 1f, 0.5f);
 
-    [Header("Throw (hold E)")]
+    [Header("Throw (hold G)")]
     [Tooltip("Press shorter than this = drop.")]
     [SerializeField]
     private float tapTime = 0.2f;
@@ -84,7 +84,7 @@ public class Carrier : MonoBehaviour, IHandsFull
     [SerializeField]
     private bool swingThrowEnabled = false;
 
-    [Tooltip("Swing throw for small objects (held at the side). Off = hold-E only.")]
+    [Tooltip("Swing throw for small objects (held at the side). Off = hold-G only.")]
     [SerializeField]
     private bool swingSmall;
 
@@ -182,7 +182,7 @@ public class Carrier : MonoBehaviour, IHandsFull
 
     public Quaternion ViewRotation => Origin != null ? Origin.rotation : Quaternion.identity;
 
-    /// <summary>Hold-E throw charge 0..1.</summary>
+    /// <summary>Hold-G throw charge 0..1.</summary>
     public float Charge01 =>
         _held != null && _charging
             ? Mathf.Clamp01((_holdTimer - tapTime) / Mathf.Max(chargeTime, 0.01f))
@@ -246,6 +246,14 @@ public class Carrier : MonoBehaviour, IHandsFull
             _held = null;
             _charging = false;
             ResetSwing();
+
+            if (IInput.GrabPressed
+                && _interactor.Target != null
+                && _interactor.Target.TryGetComponent<Carriable>(out var carriable))
+            {
+                TryGrab(carriable);
+            }
+
             return;
         }
 
@@ -261,6 +269,10 @@ public class Carrier : MonoBehaviour, IHandsFull
                 return;
             if (_held.TryGetComponent<IHeldInteract>(out var hi) && hi.OnHeldInteract(_interactor))
                 return;
+        }
+
+        if (IInput.GrabPressed)
+        {
             _charging = true;
             _holdTimer = 0f;
             _swinging = false; // charge overrides swing
@@ -268,12 +280,12 @@ public class Carrier : MonoBehaviour, IHandsFull
 
         if (_charging)
         {
-            if (input.InteractReleased)
+            if (IInput.GrabReleased)
             {
                 ReleaseHeld();
                 return;
             }
-            if (!input.InteractHeld) // input lost (unlock/menu): cancel charge
+            if (!IInput.GrabHeld) // input lost (unlock/menu): cancel charge
             {
                 _charging = false;
                 return;

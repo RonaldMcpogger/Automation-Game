@@ -8,7 +8,11 @@ public class Resource : ScriptableObject
     public GameObject objModel;
     [FormerlySerializedAs("name")]
     public string itemName;
-    [Range(1, 4)] public int Tier;
 
+    public Sprite ItemImage;
+
+    public int maxStackSize = stackDefault; // maximum number of items that can be stacked in one inventory slot
+
+    private const int stackDefault = 60;
     public string DisplayName => string.IsNullOrWhiteSpace(itemName) ? name : itemName;
 }

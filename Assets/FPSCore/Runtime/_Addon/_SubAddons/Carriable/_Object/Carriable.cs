@@ -181,14 +181,8 @@ public class Carriable : MonoBehaviour
             if (_interactHandlers[i].TryHandleInteract(this, who))
                 return;
 
-        if (_attached || who == null)
-            return;
-        if (!who.TryGetComponent<Carrier>(out var carrier))
-        {
-            Debug.LogWarning($"{name}: Carrier missing on {who.name}.", this);
-            return;
-        }
-        carrier.TryGrab(this);
+        // Picking up is driven by the separate Grab action (G), in Carrier.
+        // Interact remains available for item-specific handlers such as storage.
     }
 
     /// <summary>Called by Carrier. False if it can't be carried.</summary>
