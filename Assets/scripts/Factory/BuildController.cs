@@ -117,6 +117,66 @@ public class BuildController : MonoBehaviour
     private BuildTabCatalog buildTabCatalog;
     private FactoryData selectedFactoryData;
 
+    public FactoryData SelectedFactoryData => selectedFactoryData;
+
+    [Header("Crafting Costs")]
+    [Tooltip("When enabled, placing structures consumes required resources from the player's pouch.")]
+    public bool enforceBuildCosts = true;
+
+    public bool CanAfford(BuildableType type, out string message)
+    {
+        return CanAfford(GetFactoryData(type), out message);
+    }
+
+    public bool CanAfford(FactoryData data, out string message)
+    {
+        message = string.Empty;
+        if (!enforceBuildCosts)
+            return true;
+
+        if (data == null || !data.HasBuildCost)
+            return true;
+
+        var player = GetComponent<FactoryPlayer>();
+        if (player == null)
+            return true;
+
+        Resource costItem = data.BuildCostResource;
+        int costAmount = data.BuildCostQty;
+
+        if (costAmount <= 0 || costItem == null)
+            return true;
+
+        if (!player.HasItem(costItem, costAmount))
+        {
+            int current = player.GetItemCount(costItem);
+            message = $"Requires {data.GetCostText()} (You have: {current})";
+            return false;
+        }
+
+        return true;
+    }
+
+    public void DeductBuildCost(BuildableType type)
+    {
+        if (!enforceBuildCosts)
+            return;
+
+        var player = GetComponent<FactoryPlayer>();
+        if (player == null)
+            return;
+
+        FactoryData data = GetFactoryData(type);
+        if (data == null || !data.HasBuildCost)
+            return;
+
+        Resource costItem = data.BuildCostResource;
+        int costAmount = data.BuildCostQty;
+
+        if (costAmount > 0 && costItem != null)
+            player.ConsumeItem(costItem, costAmount);
+    }
+
     // FPSCore InputManager Actions
     private InputAction buildModeAction;
     private InputAction buildPlaceAction;
@@ -127,6 +187,7 @@ public class BuildController : MonoBehaviour
 
     private void Awake()
     {
+        enforceBuildCosts = true;
         ResolveBuildCatalog();
         if (viewCamera == null)
             viewCamera = GetComponentInChildren<Camera>() ?? Camera.main;
@@ -456,6 +517,9 @@ public class BuildController : MonoBehaviour
         {
             if (!conveyorHasStart)
             {
+                if (!CanAfford(BuildableType.ConveyorBelt, out _))
+                    return;
+
                 bool snapped = TryGetSnapTarget(true, hit.point, out SnapTarget snap);
                 conveyorStartPoint = snapped ? snap.position : hit.point + Vector3.up * conveyorHeightOffset;
                 activeStartMachine = snapped ? snap.machine : null;
@@ -465,6 +529,9 @@ public class BuildController : MonoBehaviour
             }
             else
             {
+                if (!CanAfford(BuildableType.ConveyorBelt, out _))
+                    return;
+
                 bool snapped = TryGetSnapTarget(false, hit.point, out SnapTarget snap);
                 Vector3 endPoint = snapped ? snap.position : hit.point + Vector3.up * conveyorHeightOffset;
 
@@ -486,6 +553,8 @@ public class BuildController : MonoBehaviour
                         snapped ? snap : default,
                         conveyorStartDirection);
 
+                    DeductBuildCost(BuildableType.ConveyorBelt);
+
                     conveyorHasStart = false;
                     activeStartMachine = null;
                     conveyorStartSnap = default;
@@ -495,19 +564,35 @@ public class BuildController : MonoBehaviour
         }
         else if (SelectedType == BuildableType.Smelter)
         {
+            if (!CanAfford(BuildableType.Smelter, out _))
+                return;
+
             BuildSmelter(hit.point, Quaternion.Euler(0, BuildingRotation, 0));
+            DeductBuildCost(BuildableType.Smelter);
         }
         else if (SelectedType == BuildableType.SubmissionBin)
         {
+            if (!CanAfford(BuildableType.SubmissionBin, out _))
+                return;
+
             BuildSubmissionBin(hit.point, Quaternion.Euler(0, BuildingRotation, 0));
+            DeductBuildCost(BuildableType.SubmissionBin);
         }
         else if (SelectedType == BuildableType.ResourceSpot)
         {
+            if (!CanAfford(BuildableType.ResourceSpot, out _))
+                return;
+
             BuildResourceSpot(hit.point, Quaternion.Euler(0, BuildingRotation, 0));
+            DeductBuildCost(BuildableType.ResourceSpot);
         }
         else if (SelectedType == BuildableType.Presser)
         {
+            if (!CanAfford(BuildableType.Presser, out _))
+                return;
+
             BuildPresser(hit.point, Quaternion.Euler(0, BuildingRotation, 0));
+            DeductBuildCost(BuildableType.Presser);
         }
     }
 

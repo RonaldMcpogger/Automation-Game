@@ -23,3 +23,5 @@ MonoBehaviour:
   inputCapacity: 10
   processingSeconds: 2
   icon: {fileID: 0}
+  buildCostItem: {fileID: 11400000, guid: 9ca77deed8a8cf64d8a9018ed0b77c86, type: 2}
+  buildCostAmount: 5
