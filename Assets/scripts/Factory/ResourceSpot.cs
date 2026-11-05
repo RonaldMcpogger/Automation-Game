@@ -10,14 +10,52 @@ public class ResourceSpot : FactoryInteractable
 
     public override bool HoldToInteract => true;
 
-    public override string GetPrompt(FactoryPlayer player) => player.OreCount >= player.oreCapacity
-        ? "Ore pouch full - load the factory"
-        : $"Hold [{{key}}] to gather {resourceData?.DisplayName ?? "iron ore"}";
+    private void Awake()
+    {
+        EnsureResourceData();
+    }
+
+    private void EnsureResourceData()
+    {
+        if (resourceData == null)
+        {
+            var smelter = Resources.Load<FactoryData>("FactoryData/Smelter");
+            if (smelter != null && smelter.inputItem != null)
+                resourceData = smelter.inputItem;
+            else
+            {
+                var spotData = Resources.Load<FactoryData>("FactoryData/IronOreSpot");
+                if (spotData != null && spotData.outputItem != null)
+                    resourceData = spotData.outputItem;
+            }
+        }
+    }
+
+    public string ResourceName
+    {
+        get
+        {
+            EnsureResourceData();
+            return resourceData != null ? resourceData.DisplayName : "Iron Ore";
+        }
+    }
+
+    public override string GetPrompt(FactoryPlayer player)
+    {
+        if (player == null)
+            return string.Empty;
+
+        return player.TotalCarriedCount >= player.oreCapacity
+            ? "Ore pouch full - load the smelter [E] or build [B]"
+            : $"Hold [{{key}}] to gather {ResourceName}";
+    }
 
     public override void Interact(FactoryPlayer player)
     {
         if (player == null || !isActiveAndEnabled || Time.time < nextGatherTime)
             return;
+
+        EnsureResourceData();
         if (player.TryCollect(resourceData))
             nextGatherTime = Time.time + gatherInterval;
     }

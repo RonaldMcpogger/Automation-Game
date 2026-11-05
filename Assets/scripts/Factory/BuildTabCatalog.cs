@@ -104,11 +104,16 @@ public class BuildTabCatalog : MonoBehaviour
 
     public void SetVisible(bool visible)
     {
-        Initialize();
+        // Hiding also happens during scene teardown. Never create UI/input objects on that path.
+        if (visible)
+            Initialize();
+        else
+            canvasGroup ??= GetComponent<CanvasGroup>();
         if (canvasGroup == null)
             return;
 
-        gameObject.SetActive(true);
+        if (visible)
+            gameObject.SetActive(true);
         canvasGroup.alpha = visible ? 1f : 0f;
         canvasGroup.interactable = visible;
         canvasGroup.blocksRaycasts = visible;
@@ -201,7 +206,12 @@ public class BuildTabCatalog : MonoBehaviour
 
         TextMeshProUGUI label = entry.GetComponentInChildren<TextMeshProUGUI>(true);
         if (label != null)
-            label.text = definition.DisplayName;
+        {
+            string cost = definition.GetCostText();
+            label.text = string.IsNullOrEmpty(cost) || cost == "Free"
+                ? definition.DisplayName
+                : $"{definition.DisplayName}\n<size=75%><color=#D0D0D0>({cost})</color></size>";
+        }
     }
 
     private void SelectEntry(Image entry, int index, FactoryData definition)
@@ -211,10 +221,30 @@ public class BuildTabCatalog : MonoBehaviour
         selectedEntry = entry;
         if (selectedEntry != null)
             selectedEntry.color = hoverColor;
+
+        var player = FindAnyObjectByType<FactoryPlayer>();
+        bool canAfford = player == null || definition == null || !definition.HasBuildCost
+            || player.HasItem(definition.BuildCostResource, definition.BuildCostQty);
+
         if (buildButton != null)
-            buildButton.interactable = true;
+        {
+            buildButton.interactable = canAfford;
+            var btnText = buildButton.GetComponentInChildren<TextMeshProUGUI>();
+            if (btnText != null)
+            {
+                btnText.text = canAfford ? "BUILD" : "LOCKED (NEED RESOURCES)";
+            }
+        }
+
         if (FactoryNameDisplay != null)
-            FactoryNameDisplay.text = definition.DisplayName;
+        {
+            string cost = definition != null ? definition.GetCostText() : "Free";
+            string costColor = canAfford ? "#77DD77" : "#FF6666";
+            int current = player != null && definition != null && definition.BuildCostResource != null
+                ? player.GetItemCount(definition.BuildCostResource) : 0;
+            string countInfo = definition != null && definition.HasBuildCost ? $" (You have: {current})" : "";
+            FactoryNameDisplay.text = $"{definition.DisplayName}\n<size=65%><color={costColor}>Cost: {cost}{countInfo}</color></size>";
+        }
         onSelected?.Invoke(index);
     }
 

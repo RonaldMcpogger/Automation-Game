@@ -14,6 +14,27 @@ public static class TerrainMapEditor
     private const string Folder = "Assets/World";
     private const string DataPath = Folder + "/Generated Terrain.asset";
 
+    [MenuItem("Tools/Factory Map/Upgrade to Large Landscape")]
+    public static void UpgradeLargeLandscape()
+    {
+        var settings = AssetDatabase.LoadAssetAtPath<MapGenerationSettings>(Folder + "/Map Settings.asset");
+        if (settings == null)
+            throw new InvalidOperationException("Set up MainScene's map first.");
+        Undo.RecordObject(settings, "Upgrade landscape settings");
+        settings.mapSize = new Vector2(1024, 1024);
+        settings.heightmapPower = 9;
+        settings.verticalSize = 192f;
+        settings.hillHeight = 20f;
+        settings.noiseScale = 160f;
+        settings.mountainCount = 7;
+        settings.mountainHeight = 130f;
+        settings.mountainRadius = 150f;
+        settings.resourceSpotCount = 48;
+        settings.resourceSpacing = 65f;
+        EditorUtility.SetDirty(settings);
+        SetUpMainScene();
+    }
+
     [MenuItem("Tools/Factory Map/Set Up Main Scene")]
     public static void SetUpMainScene()
     {
@@ -59,6 +80,7 @@ public static class TerrainMapEditor
             map.terrainMaterial = new Material(shader) { name = "Factory Terrain" };
             AssetDatabase.CreateAsset(map.terrainMaterial, Folder + "/Terrain.mat");
         }
+        map.resourceSpotPrefab = CreateOreSpotPrefab();
         map.GenerateInto(data);
         // Preserve the old floor for comparison without double surfaces or colliders.
         var oldFloor = GameObject.Find("Land");
@@ -75,6 +97,59 @@ public static class TerrainMapEditor
         Selection.activeGameObject = map.gameObject;
         Debug.Log($"Factory map saved: seed {settings.seed}, {settings.mapSize.x} x {settings.mapSize.y}m, "
             + $"generator v{MapGenerationSettings.GeneratorVersion}. Factory clearing stays at Y=0.");
+    }
+
+    private static ResourceSpot CreateOreSpotPrefab()
+    {
+        string path = Folder + "/Iron Ore Deposit.prefab";
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        if (prefab != null)
+            return prefab.GetComponent<ResourceSpot>();
+        var ore = AssetDatabase.LoadAssetAtPath<Resource>("Assets/ScriptableObjects/Raw Resources/Iron Ore.asset");
+        if (ore == null)
+            throw new InvalidOperationException("The iron ore resource definition is missing.");
+        var rock = new Material(Shader.Find("Universal Render Pipeline/Lit"))
+            { name = "Ore Deposit Rock", color = new Color(0.20f, 0.23f, 0.25f), enableInstancing = true };
+        var mineral = new Material(rock.shader)
+            { name = "Iron Mineral", color = new Color(0.76f, 0.34f, 0.12f), enableInstancing = true };
+        AssetDatabase.CreateAsset(rock, Folder + "/Ore Deposit Rock.mat");
+        AssetDatabase.CreateAsset(mineral, Folder + "/Iron Mineral.mat");
+        var mesh = new Mesh { name = "Faceted Ore Rock" };
+        var points = new[] { new Vector3(0, 1.6f, 0), new Vector3(-0.9f, 0.4f, 0),
+            new Vector3(0, 0.4f, 0.8f), new Vector3(0.9f, 0.4f, 0),
+            new Vector3(0, 0.4f, -0.8f), new Vector3(0, -0.15f, 0) };
+        var faces = new[] { 0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 1,
+            5, 2, 1, 5, 3, 2, 5, 4, 3, 5, 1, 4 };
+        var vertices = new Vector3[faces.Length];
+        var triangles = new int[faces.Length];
+        for (int i = 0; i < faces.Length; i++) { vertices[i] = points[faces[i]]; triangles[i] = i; }
+        mesh.vertices = vertices;
+        mesh.triangles = triangles;
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        AssetDatabase.CreateAsset(mesh, Folder + "/Ore Rock.asset");
+        var root = new GameObject("Iron Ore Deposit");
+        var spot = root.AddComponent<ResourceSpot>();
+        spot.resourceData = ore;
+        Rock("Main Rock", Vector3.zero, new Vector3(1.1f, 1f, 1.1f), rock);
+        Rock("Side Rock", new Vector3(-1f, 0, 0.5f), new Vector3(0.75f, 0.65f, 0.85f), rock);
+        Rock("Side Rock", new Vector3(0.8f, 0, -0.7f), new Vector3(0.75f, 0.8f, 0.8f), rock);
+        Rock("Iron Mineral", new Vector3(-0.6f, 0.5f, 0.3f), new Vector3(0.35f, 0.55f, 0.4f), mineral);
+        Rock("Iron Mineral", new Vector3(0.5f, 0.7f, -0.3f), new Vector3(0.4f, 0.5f, 0.3f), mineral);
+        prefab = PrefabUtility.SaveAsPrefabAsset(root, path);
+        Object.DestroyImmediate(root);
+        return prefab.GetComponent<ResourceSpot>();
+
+        void Rock(string name, Vector3 position, Vector3 scale, Material material)
+        {
+            var part = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer), typeof(MeshCollider));
+            part.transform.SetParent(root.transform, false);
+            part.transform.localPosition = position;
+            part.transform.localScale = scale;
+            part.GetComponent<MeshFilter>().sharedMesh = mesh;
+            part.GetComponent<MeshRenderer>().sharedMaterial = material;
+            part.GetComponent<MeshCollider>().sharedMesh = mesh;
+        }
     }
 
     public static void Regenerate(TerrainMapGenerator map)
@@ -156,10 +231,13 @@ public static class TerrainMapEditor
     private static void RenderPreview()
     {
         var camera = new GameObject("Map Preview Camera").AddComponent<Camera>();
-        camera.transform.position = new Vector3(-100, 110, 140);
-        camera.transform.LookAt(new Vector3(-5, 0, -8));
+        var map = Object.FindAnyObjectByType<TerrainMapGenerator>();
+        float size = Mathf.Max(map.settings.mapSize.x, map.settings.mapSize.y);
+        Vector3 center = new Vector3(map.settings.mapCenter.x, 0, map.settings.mapCenter.y);
+        camera.transform.position = center + new Vector3(-0.6f, 0.65f, 0.7f) * size;
+        camera.transform.LookAt(center);
         camera.fieldOfView = 65f;
-        camera.farClipPlane = 600f;
+        camera.farClipPlane = size * 4f;
         camera.GetUniversalAdditionalCameraData().renderPostProcessing = false;
         var target = new RenderTexture(1440, 900, 24);
         target.Create();
@@ -209,5 +287,22 @@ public class TerrainMapGeneratorInspector : Editor
                 Debug.LogException(exception, map);
             }
         }
+        if (GUILayout.Button("New Random Seed and Regenerate"))
+        {
+            var map = (TerrainMapGenerator)target;
+            if (Application.isPlaying)
+                map.RegenerateRuntime(true);
+            else if (map.settings != null)
+            {
+                map.settings.Validate();
+                Undo.RecordObject(map.settings, "Choose new map seed");
+                map.settings.seed = Guid.NewGuid().GetHashCode();
+                EditorUtility.SetDirty(map.settings);
+                TerrainMapEditor.Regenerate(map);
+            }
+        }
+        var current = (TerrainMapGenerator)target;
+        EditorGUILayout.LabelField("Generated seed", current.GeneratedSeed.ToString());
+        EditorGUILayout.LabelField("Resource spots", current.GeneratedResources == null ? "0" : current.GeneratedResources.childCount.ToString());
     }
 }

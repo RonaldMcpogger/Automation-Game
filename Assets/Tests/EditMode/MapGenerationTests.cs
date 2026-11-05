@@ -49,7 +49,7 @@ public class MapGenerationTests
                 Assert.That(worldHeight, Is.EqualTo(0f).Within(0.0001f));
         }
         Assert.That(highest, Is.GreaterThan(1f), "The surrounding map must actually have hills.");
-        Assert.That(highest, Is.LessThanOrEqualTo(settings.hillHeight));
+        Assert.That(highest, Is.LessThanOrEqualTo(settings.hillHeight + settings.mountainHeight));
     }
 
     [Test]
@@ -74,11 +74,24 @@ public class MapGenerationTests
     {
         settings.hillHeight = settings.verticalSize + 1f;
         Assert.Throws<ArgumentException>(() => MapHeightGenerator.Generate(settings));
-        settings.hillHeight = 14f;
+        settings.hillHeight = 20f;
         settings.clearingCenter = settings.mapSize;
         Assert.Throws<ArgumentException>(() => MapHeightGenerator.Generate(settings));
         settings.clearingCenter = Vector2.zero;
         settings.noiseScale = float.NaN;
         Assert.Throws<ArgumentException>(() => MapHeightGenerator.Generate(settings));
+    }
+
+    [Test]
+    public void MountainRegionsCreatePeaksAboveRollingHills()
+    {
+        var mountains = MapHeightGenerator.Generate(settings);
+        settings.mountainCount = 0;
+        var hills = MapHeightGenerator.Generate(settings);
+        float maximumGain = 0f;
+        for (int z = 0; z < mountains.GetLength(0); z++)
+        for (int x = 0; x < mountains.GetLength(1); x++)
+            maximumGain = Mathf.Max(maximumGain, (mountains[z, x] - hills[z, x]) * settings.verticalSize);
+        Assert.That(maximumGain, Is.GreaterThan(50f), "Mountains must be distinct from the low hills.");
     }
 }

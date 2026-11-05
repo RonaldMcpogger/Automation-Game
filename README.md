@@ -10,7 +10,7 @@ Hierarchy before Play if you want to use the original production loop below.
 ## Original production loop
 
 1. Walk to the brown **Iron Ore Spot** and look at it. Hold **E** to gather ore
-   (one every 0.4 seconds, pouch capacity 10).
+   (one every 0.4 seconds; pouch capacity is configured on the player).
 2. Look at the **Smelter** and press **E** to transfer as much ore as its buffer
    can accept (capacity 10). Each ore takes 2 seconds to become one iron ingot.
 3. Ingots automatically enter the existing curved conveyor and reach the
@@ -51,11 +51,15 @@ In Unity's Test Runner, run the PlayMode tests in `FirstFactoryTests`. They load
 the saved MainScene and cover the complete 10-ingot loop, a stopped belt, a blocked
 bin and item spacing, rejection of raw/test/duplicate cargo, and a full machine.
 
-`BuildModeTests` checks the construction sandbox. `TerrainMapTests` checks the
+`BuildModeTests` checks the construction sandbox and the catalog's selection/build
+callback and input-mode flow. `TerrainMapTests` checks the
 saved terrain collider, protected factory clearing, finite boundaries, elevated
 smelter snapping, and runtime-copy isolation. EditMode `MapGenerationTests` checks
 seed reproducibility, valid heights, the flat clearing, settings validation, and
-isolation from gameplay's random sequence.
+isolation from gameplay's random sequence. `ResourcePlanningTests` checks deposit
+spacing, safe ground, reproducibility, and bounded placement attempts.
+`GeneratedResourceTests` checks gathering usable ore and replacing generated
+deposits without deleting player-placed objects or modifying saved settings.
 
 ## Construction sandbox
 
@@ -68,37 +72,68 @@ than 20 degrees. Conveyor endpoints still support snapping to machine sides.
 
 ## Terrain foundation
 
-- One **256 x 256 metre** map, centered at world X/Z=0, with a **257 x 257** heightmap.
-- Default seed: **104729**. Generator version: **1**.
+- One **1024 x 1024 metre** map (1 square kilometre), centered at world X/Z=0,
+  with a **513 x 513** heightmap (approximately 2 metres between samples).
+- Default seed: **104729**. Generator version: **2**. Version 2 changes the
+  landscape for existing seeds because it adds mountain regions.
 - A **112 x 96 metre** factory clearing, centered at X=-8, Z=0, stays at world
-  **Y=0**. A 24-metre smooth transition leads into gentle hills up to 14 metres high.
+  **Y=0**. A 24-metre smooth transition leads into rolling hills up to 20 metres
+  high and seven seeded mountain regions with up to 130 metres of added relief.
+  Regions overlap using a maximum, so their heights do not add without limit.
 - Native Terrain/TerrainCollider share the same saved TerrainData. Grass and rock
-  layers use small generated tile textures; steeper slopes blend toward rock.
+  layers use small generated tile textures; steep slopes and high elevations
+  blend toward rock.
 - Four colliders stop the player walking off the finite map. They use Unity's
   Ignore Raycast layer so they do not become building placement surfaces.
-- The factory, resource spot, player spawn, and conveyor route remain in place.
-  Map generation does not spawn extra resources or move buildings.
+- The original factory, player spawn, and conveyor route remain in place.
+
+## Generated resource deposits
+
+The map requests **48 iron-ore deposits**, including a guaranteed starter deposit
+at X=-42, Z=12 near the original player spawn. Walk to a dark angular rock cluster
+with orange mineral pieces, look at a rock, and hold **E** to gather ore for the
+smelter. These are working `ResourceSpot` instances, not loose item pickups.
+
+Other deposits stay outside the protected clearing/transition, at least 65 metres
+apart and 24 metres inside the map edge. Placement checks slope (up to 16 degrees),
+elevation (up to 45 metres), and the rock footprint. A coarse eight-metre walking
+grid excludes regions cut off from the clearing by steep terrain; this is a
+terrain-accessibility check, not a NavMesh or a generated road system.
+
+Placement attempts are bounded. If custom settings cannot fit the requested
+count, the generator reports the actual count instead of stacking deposits or
+looping indefinitely. Change the settings to adjust density. There is currently
+one natural resource type, iron ore; ingots and plates remain processed products.
 
 To change the map:
 
-1. Edit `Assets/World/Map Settings.asset` (seed, map dimensions, clearing, hills).
+1. Edit `Assets/World/Map Settings.asset` (seed, dimensions, clearing, hills,
+   mountains, resource density and suitability limits).
 2. Select **Generated Factory Map** in MainScene.
 3. Click **Regenerate Terrain (Undo Supported)** in its inspector, then save
    the scene/project. Regeneration replaces heightmap sculpting and surface paint;
-   it preserves station objects. Keep the clearing over any buildings you want
+   it replaces only the **Generated Resource Spots** group and preserves other
+   station objects. Keep the clearing over any buildings you want
    to protect. Changing its footprint does not relocate them automatically.
 
-The scene loads the baked map in both Editor and player builds. **Generate On
+For a different random landscape, click **New Random Seed and Regenerate** in
+the map inspector. It records a new seed and rebuilds both terrain and deposits.
+The inspector displays the actual generated seed and deposit count.
+
+The scene loads the baked map and deposits in both Editor and player builds. **Generate On
 Awake** is off. If explicitly enabled, or if **Regenerate Runtime Copy** is used
 in Play Mode, a private TerrainData is generated without modifying saved assets.
+The random-seed button also works in Play Mode, using a temporary settings copy.
 Only regenerate before building: terrain changes do not reposition existing cargo
 or structures. A seed is reproducible with the same settings and generator version.
 
 `Tools > Factory Map > Set Up Main Scene` installs or refreshes the saved map
 assets and scene wiring. It reuses the existing settings and terrain asset.
+The **Upgrade to Large Landscape** menu applies this version's recommended
+dimensions and mountain/resource defaults; normal regeneration preserves custom settings.
 Runtime generation code is in `Assets/scripts/World`; editor authoring is in
 `Assets/Editor/TerrainMapEditor.cs`.
 
 This remains a small prototype: one resource type, one recipe, and one submission
-objective, with free construction. Infinite chunks, biomes, trees, water, resource
-distribution, foundations, power, splitters/mergers, and factory saving are future work.
+objective, with free construction. Infinite chunks, biomes, trees, water, additional
+ore types, roads, foundations, power, splitters/mergers, and factory saving are future work.

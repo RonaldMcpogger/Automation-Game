@@ -11,9 +11,15 @@ public class TerrainMapGenerator : MonoBehaviour
     public TerrainLayer[] surfaceLayers;
     public Material terrainMaterial;
     public bool generateOnAwake;
+    [Header("Generated Resource Spots")]
+    public ResourceSpot resourceSpotPrefab;
+    [SerializeField] private Transform generatedResources;
+    [SerializeField] private int generatedSeed;
     private TerrainData runtimeData;
 
     public Terrain Terrain => GetComponent<Terrain>();
+    public Transform GeneratedResources => generatedResources;
+    public int GeneratedSeed => generatedSeed;
 
     private void Awake()
     {
@@ -22,19 +28,33 @@ public class TerrainMapGenerator : MonoBehaviour
     }
 
     /// <summary>Does not modify the saved terrain asset, even when called in Editor Play Mode.</summary>
-    public void RegenerateRuntime()
+    public void RegenerateRuntime(bool newRandomSeed = false)
     {
         if (!Application.isPlaying)
             throw new InvalidOperationException("Use the map inspector's Regenerate button outside Play Mode.");
         var data = new TerrainData { name = "Generated Map (runtime)" };
+        var originalSettings = settings;
         try
         {
+            if (newRandomSeed)
+            {
+                settings = Instantiate(originalSettings);
+                settings.seed = Guid.NewGuid().GetHashCode();
+            }
             GenerateInto(data);
         }
         catch
         {
             Destroy(data);
             throw;
+        }
+        finally
+        {
+            if (settings != originalSettings)
+            {
+                Destroy(settings);
+                settings = originalSettings;
+            }
         }
         var previous = runtimeData;
         runtimeData = data;
@@ -47,6 +67,8 @@ public class TerrainMapGenerator : MonoBehaviour
     {
         if (settings == null || data == null)
             throw new InvalidOperationException("Assign map settings and a destination TerrainData.");
+        if (settings.resourceSpotCount > 0 && resourceSpotPrefab == null)
+            throw new InvalidOperationException("Assign a resource spot prefab before generating this map.");
         // Validate before touching the previous map, so invalid settings leave it intact.
         float[,] heights = MapHeightGenerator.Generate(settings);
         data.heightmapResolution = settings.HeightmapResolution;
@@ -55,12 +77,15 @@ public class TerrainMapGenerator : MonoBehaviour
         if (surfaceLayers != null && surfaceLayers.Length == 2 && surfaceLayers[0] != null && surfaceLayers[1] != null)
         {
             data.terrainLayers = surfaceLayers;
-            data.alphamapResolution = 128;
-            var weights = new float[128, 128, 2];
-            for (int z = 0; z < 128; z++)
-            for (int x = 0; x < 128; x++)
+            int resolution = settings.mapSize.x > 256f || settings.mapSize.y > 256f ? 256 : 128;
+            data.alphamapResolution = resolution;
+            var weights = new float[resolution, resolution, 2];
+            for (int z = 0; z < resolution; z++)
+            for (int x = 0; x < resolution; x++)
             {
-                float rock = Mathf.InverseLerp(14f, 32f, data.GetSteepness(x / 127f, z / 127f));
+                float u = x / (resolution - 1f), v = z / (resolution - 1f);
+                float rock = Mathf.Max(Mathf.InverseLerp(18f, 38f, data.GetSteepness(u, v)),
+                    Mathf.InverseLerp(45f, 100f, data.GetInterpolatedHeight(u, v) + settings.Origin.y));
                 weights[z, x, 0] = 1f - rock;
                 weights[z, x, 1] = rock;
             }
@@ -77,6 +102,70 @@ public class TerrainMapGenerator : MonoBehaviour
         Terrain.basemapDistance = 500f;
         Terrain.Flush();
         ConfigureBoundaries(data.size);
+        generatedSeed = settings.seed;
+        ScatterResources(data);
+    }
+
+    private void ScatterResources(TerrainData data)
+    {
+        // Only replace this generator's own group; player buildings and the demo are untouched.
+        if (resourceSpotPrefab == null && settings.resourceSpotCount > 0)
+            throw new InvalidOperationException("Assign a resource spot prefab before generating this map.");
+        var placements = MapResourcePlanner.Generate(settings, data);
+        if (generatedResources != null)
+        {
+            generatedResources.gameObject.SetActive(false);
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+                UnityEditor.Undo.DestroyObjectImmediate(generatedResources.gameObject);
+            else
+#endif
+                Destroy(generatedResources.gameObject);
+        }
+        generatedResources = new GameObject("Generated Resource Spots").transform;
+        generatedResources.SetParent(transform, false);
+        for (int i = 0; i < placements.Count; i++)
+        {
+            var placement = placements[i];
+            ResourceSpot spot;
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+                spot = ((GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(resourceSpotPrefab.gameObject,
+                    generatedResources)).GetComponent<ResourceSpot>();
+            else
+#endif
+                spot = Instantiate(resourceSpotPrefab, generatedResources);
+            spot.transform.SetPositionAndRotation(placement.position, Quaternion.Euler(0, placement.yaw, 0));
+            spot.transform.localScale = Vector3.one * placement.scale;
+            spot.name = i == 0 ? "Starter Iron Ore" : "Iron Ore Deposit";
+            // Seat each base rock on the terrain; the mineral pieces stay attached to the central rock.
+            foreach (Transform part in spot.transform)
+            {
+                if (!part.name.Contains("Rock"))
+                    continue;
+                Vector3 position = part.position;
+                position.y = Terrain.SampleHeight(position) + transform.position.y + 0.03f;
+                part.position = position;
+#if UNITY_EDITOR
+                if (!Application.isPlaying)
+                    UnityEditor.PrefabUtility.RecordPrefabInstancePropertyModifications(part);
+#endif
+            }
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                UnityEditor.PrefabUtility.RecordPrefabInstancePropertyModifications(spot.transform);
+                UnityEditor.PrefabUtility.RecordPrefabInstancePropertyModifications(spot.gameObject);
+            }
+#endif
+        }
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+            UnityEditor.Undo.RegisterCreatedObjectUndo(generatedResources.gameObject, "Scatter map resources");
+#endif
+        if (placements.Count < settings.resourceSpotCount)
+            Debug.LogWarning($"Placed {placements.Count}/{settings.resourceSpotCount} deposits. "
+                + "Suitable accessible ground was exhausted; reduce spacing or the requested count.", this);
     }
 
     private void ConfigureBoundaries(Vector3 size)
