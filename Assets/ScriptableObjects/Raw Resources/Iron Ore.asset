@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0b3a340a14189dc4a93f9d8dbddb86eb, type: 3}
   m_Name: Iron Ore
   m_EditorClassIdentifier: Assembly-CSharp::Resource
-  objModel: {fileID: 0}
-  name: Iron Ore
-  Tier: 1
+  objModel: {fileID: 6363383619190445285, guid: a732012fa05134542b88bf5fe950185f, type: 3}
+  itemName: Iron Ore
+  ItemImage: {fileID: 0}
+  maxStackSize: 60

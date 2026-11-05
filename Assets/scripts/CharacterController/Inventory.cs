@@ -219,7 +219,9 @@ public class Inventory : MonoBehaviour
         
         for (int i = 0; i < InventorySlotList.Length; i++)
         {
-            GameObject view = InventorySlotPrefab;
+            // view means the slot prefab
+
+            GameObject view = InventorySlotPrefab; 
 
             if (i != 0)
             {
@@ -303,5 +305,54 @@ public class Inventory : MonoBehaviour
             return dropOrigin;
         var player = FindAnyObjectByType<FirstPersonController>();
         return player != null ? player.GetComponentInChildren<Camera>(true)?.transform : Camera.main?.transform;
+    }
+
+
+    //test code for resource getting 
+
+    public int GetItemCount(Resource item) // check number of item
+    {
+        if (item == null)
+            return 0;
+
+        int total = 0;
+        foreach (var slot in slots)
+        {
+            if (slot.item == item)
+                total += slot.amount;
+        }
+        return total;
+    }
+
+    public bool HasItem(Resource item, int amount) // check if has resource in inventory
+    {
+        return amount <= 0 || GetItemCount(item) >= amount;
+    }
+
+    public bool TryRemove(Resource item, int amount) // bool remove from inventory
+    {
+        if (item == null || amount <= 0 || !HasItem(item, amount))
+            return false;
+
+        int remaining = amount; // total left
+
+        foreach (var slot in slots)
+        {
+            if (slot.item != item)
+                continue;
+
+            int removed = Mathf.Min(slot.amount, remaining);
+            slot.amount -= removed;
+            remaining -= removed;
+
+            if (slot.amount == 0)
+                slot.item = null;
+
+            if (remaining == 0)
+                break;
+        }
+
+        RefreshUI();
+        return true;
     }
 }

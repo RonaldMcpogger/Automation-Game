@@ -128,7 +128,7 @@ public class BuildController : MonoBehaviour
         return CanAfford(GetFactoryData(type), out message);
     }
 
-    public bool CanAfford(FactoryData data, out string message)
+    public bool CanAfford(FactoryData data, out string message) // affordability for buildable items, checks if the player has enough resources to build the item
     {
         message = string.Empty;
         if (!enforceBuildCosts)
@@ -141,13 +141,20 @@ public class BuildController : MonoBehaviour
         if (player == null)
             return true;
 
+        var inventory = Inventory.Instance;
+        if (inventory == null)
+        {
+            message = "Inventory is unavailable.";
+            return false;
+        }
+
         Resource costItem = data.BuildCostResource;
         int costAmount = data.BuildCostQty;
 
         if (costAmount <= 0 || costItem == null)
             return true;
 
-        if (!player.HasItem(costItem, costAmount))
+        if (!inventory.HasItem(costItem, costAmount)) // change to ivnentory
         {
             int current = player.GetItemCount(costItem);
             message = $"Requires {data.GetCostText()} (You have: {current})";
@@ -162,11 +169,16 @@ public class BuildController : MonoBehaviour
         if (!enforceBuildCosts)
             return;
 
-        var player = GetComponent<FactoryPlayer>();
-        if (player == null)
+        //var player = GetComponent<FactoryPlayer>();
+        //if (player == null)
+        //    return;
+        
+        var inventory = Inventory.Instance;
+        if (inventory == null)
+        {
             return;
-
-        FactoryData data = GetFactoryData(type);
+        }
+        FactoryData data = GetFactoryData(type); //check type and price
         if (data == null || !data.HasBuildCost)
             return;
 
@@ -174,7 +186,7 @@ public class BuildController : MonoBehaviour
         int costAmount = data.BuildCostQty;
 
         if (costAmount > 0 && costItem != null)
-            player.ConsumeItem(costItem, costAmount);
+            inventory.TryRemove(costItem, costAmount);
     }
 
     // FPSCore InputManager Actions

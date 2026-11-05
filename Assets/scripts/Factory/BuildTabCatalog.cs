@@ -223,8 +223,10 @@ public class BuildTabCatalog : MonoBehaviour
             selectedEntry.color = hoverColor;
 
         var player = FindAnyObjectByType<FactoryPlayer>();
-        bool canAfford = player == null || definition == null || !definition.HasBuildCost
-            || player.HasItem(definition.BuildCostResource, definition.BuildCostQty);
+
+        // brother im changing this to inventory 
+        bool canAfford = Inventory.Instance == null || definition == null || !definition.HasBuildCost
+            || Inventory.Instance.HasItem(definition.BuildCostResource, definition.BuildCostQty);
 
         if (buildButton != null)
         {
@@ -240,8 +242,8 @@ public class BuildTabCatalog : MonoBehaviour
         {
             string cost = definition != null ? definition.GetCostText() : "Free";
             string costColor = canAfford ? "#77DD77" : "#FF6666";
-            int current = player != null && definition != null && definition.BuildCostResource != null
-                ? player.GetItemCount(definition.BuildCostResource) : 0;
+            int current = Inventory.Instance != null && definition != null && definition.BuildCostResource != null
+                ? Inventory.Instance.GetItemCount(definition.BuildCostResource) : 0;
             string countInfo = definition != null && definition.HasBuildCost ? $" (You have: {current})" : "";
             FactoryNameDisplay.text = $"{definition.DisplayName}\n<size=65%><color={costColor}>Cost: {cost}{countInfo}</color></size>";
         }

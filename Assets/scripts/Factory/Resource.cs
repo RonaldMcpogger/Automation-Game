@@ -14,5 +14,5 @@ public class Resource : ScriptableObject
     public int maxStackSize = stackDefault; // maximum number of items that can be stacked in one inventory slot
 
     private const int stackDefault = 60;
-    public string DisplayName => string.IsNullOrWhiteSpace(itemName) ? name : itemName;
+    public string DisplayName => string.IsNullOrWhiteSpace(itemName) ? name : itemName; // name to be shown in the UI
 }

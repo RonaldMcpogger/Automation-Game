@@ -1,10 +1,11 @@
 using UnityEngine;
 
 /// <summary>One inexhaustible ore spot for the weekly prototype.</summary>
+///  Resource spot to farm manually, or drill factory
 public class ResourceSpot : FactoryInteractable
 {
     [Tooltip("The item definition gathered from this spot.")]
-    public Resource resourceData;
+    public Resource resourceData; // resource to give or generate
     [Min(0.05f)] public float gatherInterval = 0.4f;
     private float nextGatherTime;
 
@@ -40,7 +41,7 @@ public class ResourceSpot : FactoryInteractable
         }
     }
 
-    public override string GetPrompt(FactoryPlayer player)
+    public override string GetPrompt(FactoryPlayer player) // write prompt to show on ui 
     {
         if (player == null)
             return string.Empty;
@@ -56,7 +57,11 @@ public class ResourceSpot : FactoryInteractable
             return;
 
         EnsureResourceData();
-        if (player.TryCollect(resourceData))
-            nextGatherTime = Time.time + gatherInterval;
+        if (Inventory.Instance != null && Inventory.Instance.TryAdd(resourceData))
+        {
+            Debug.Log("picked up+" + resourceData.DisplayName);
+            if (player.TryCollect(resourceData)) // remove in the future as more items are added
+                nextGatherTime = Time.time + gatherInterval;
+        }
     }
 }
