@@ -16,8 +16,8 @@ public class Inventory : MonoBehaviour
     [SerializeField] private GameObject InventorySlotPrefab; // prefab for the slots
     [SerializeField] private Button dropButton; // drop button
 
-    [Header("World Drop")]
-    [Tooltip("Optional origin for dropped items. If empty, the player's camera is used.")]
+    [Header("World Drop")] // reference
+    [Tooltip("Optional orign reference point for drops, this is so inventory knows which place at a set distance can it drop the item")]
     [SerializeField] private Transform dropOrigin;
     [SerializeField, Min(0.5f)] private float dropDistance = 2f;
 
@@ -211,12 +211,22 @@ public class Inventory : MonoBehaviour
             Debug.LogError("Inventory needs an Item Slot prefab and at least one slot.", this);
             return;
         }
-
-        Transform container = InventorySlotPrefab.transform.parent != null
-            ? InventorySlotPrefab.transform.parent : InventoryGroup.transform;
+        Transform container= InventoryGroup.transform;
+        if (InventorySlotPrefab.transform.parent != null)
+        {
+            container = InventorySlotPrefab.transform.parent;
+        }
+        
         for (int i = 0; i < InventorySlotList.Length; i++)
         {
-            GameObject view = i == 0 ? InventorySlotPrefab : Instantiate(InventorySlotPrefab, container);
+            GameObject view = InventorySlotPrefab;
+
+            if (i != 0)
+            {
+                view = Instantiate(InventorySlotPrefab, container);
+            }
+
+
             view.name = $"Item Slot {i + 1}";
             view.SetActive(true);
             InventorySlotList[i] = view;
@@ -226,6 +236,7 @@ public class Inventory : MonoBehaviour
             var itemName = view.transform.Find("Item Name");
             var amount = view.transform.Find("Amount Stack");
             slot.icon = icon != null ? icon.GetComponent<Image>() : null;
+
             slot.itemName = itemName != null ? itemName.GetComponent<TMP_Text>() : null;
             slot.amountLabel = amount != null ? amount.GetComponent<TMP_Text>() : null;
 
