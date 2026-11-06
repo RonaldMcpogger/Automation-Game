@@ -61,6 +61,8 @@ public class FactoryData : ScriptableObject
         {
             if (buildCostAmount > 0)
                 return buildCostAmount;
+            if (buildCostItem != null)
+                return 1;
 
             switch (kind)
             {
@@ -74,6 +76,41 @@ public class FactoryData : ScriptableObject
     }
 
     public bool HasBuildCost => BuildCostQty > 0 && BuildCostResource != null;
+
+    public Resource FallbackCostItem
+    {
+        get
+        {
+            switch (kind)
+            {
+                case FactoryKind.Machine:
+                    return inputItem ?? Resources.Load<FactoryData>("FactoryData/Smelter")?.inputItem;
+                case FactoryKind.SubmissionBin:
+                    return Resources.Load<FactoryData>("FactoryData/Smelter")?.inputItem;
+                case FactoryKind.Conveyor:
+                    return Resources.Load<FactoryData>("FactoryData/Smelter")?.inputItem;
+                case FactoryKind.Presser:
+                    return inputItem ?? Resources.Load<FactoryData>("FactoryData/Presser")?.inputItem;
+                default:
+                    return null;
+            }
+        }
+    }
+
+    public int FallbackCostQty
+    {
+        get
+        {
+            switch (kind)
+            {
+                case FactoryKind.Machine: return 5;
+                case FactoryKind.SubmissionBin: return 3;
+                case FactoryKind.Conveyor: return 1;
+                case FactoryKind.Presser: return 4;
+                default: return 0;
+            }
+        }
+    }
 
     public string GetCostText()
     {

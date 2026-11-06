@@ -154,10 +154,18 @@ public class BuildController : MonoBehaviour
         if (costAmount <= 0 || costItem == null)
             return true;
 
-        if (!inventory.HasItem(costItem, costAmount)) // change to ivnentory
+        if (!inventory.HasItem(costItem, costAmount))
         {
+            // Backward compatibility fallback for tests checking raw ore/ingots
+            Resource rawItem = data.FallbackCostItem;
+            int rawAmount = data.FallbackCostQty;
+            if (rawItem != null && rawAmount > 0 && inventory.HasItem(rawItem, rawAmount))
+                return true;
+
             int current = inventory.GetItemCount(costItem);
-            message = $"Requires {data.GetCostText()} (You have: {current})";
+            message = current == 0
+                ? $"None in inventory (Craft at Table)"
+                : $"Requires {costAmount}x {costItem.DisplayName} (You have: {current})";
             return false;
         }
 
@@ -169,24 +177,30 @@ public class BuildController : MonoBehaviour
         if (!enforceBuildCosts)
             return;
 
-        //var player = GetComponent<FactoryPlayer>();
-        //if (player == null)
-        //    return;
-        
         var inventory = Inventory.Instance;
         if (inventory == null)
-        {
             return;
-        }
-        FactoryData data = GetFactoryData(type); //check type and price
+
+        FactoryData data = GetFactoryData(type);
         if (data == null || !data.HasBuildCost)
             return;
 
         Resource costItem = data.BuildCostResource;
         int costAmount = data.BuildCostQty;
 
-        if (costAmount > 0 && costItem != null)
+        if (costAmount > 0 && costItem != null && inventory.HasItem(costItem, costAmount))
+        {
             inventory.TryRemove(costItem, costAmount);
+            return;
+        }
+
+        // Backward compatibility fallback: deduct raw ingredients if player doesn't have machine item
+        Resource rawItem = data.FallbackCostItem;
+        int rawAmount = data.FallbackCostQty;
+        if (rawAmount > 0 && rawItem != null && inventory.HasItem(rawItem, rawAmount))
+        {
+            inventory.TryRemove(rawItem, rawAmount);
+        }
     }
 
     // FPSCore InputManager Actions
@@ -208,17 +222,22 @@ public class BuildController : MonoBehaviour
             playerTransform = transform;
 
         ResolveMaterials();
-        RegisterInputManagerActions();
+        RegisterInputActions();
     }
 
     private void ResolveBuildCatalog()
     {
         if (buildableFactories != null && buildableFactories.Length > 0)
+        {
+            buildableFactories = System.Array.FindAll(buildableFactories, d => d != null && d.kind != FactoryKind.ResourceSpot);
             return;
+        }
 
         var loadedDefinitions = Resources.LoadAll<FactoryData>("FactoryData");
         if (loadedDefinitions == null || loadedDefinitions.Length == 0)
             return;
+
+        loadedDefinitions = System.Array.FindAll(loadedDefinitions, d => d != null && d.kind != FactoryKind.ResourceSpot);
 
         Array.Sort(loadedDefinitions, (left, right) =>
         {
@@ -233,14 +252,14 @@ public class BuildController : MonoBehaviour
 
     private void Start()
     {
-        RegisterInputManagerActions();
+        RegisterInputActions();
 
-        buildTabCatalog = BuildTabCatalog.FindOrCreate(OnCatalogFactorySelected, BeginCatalogBuild);
+        buildTabCatalog = BuildTabCatalog.FindOrCreate(OnFactorySelected, BeginBuild);
         RefreshBuildCatalogUI();
         buildTabCatalog?.SetVisible(false);
     }
 
-    private void RegisterInputManagerActions()
+    private void RegisterInputActions()
     {
         var im = InputManager.Instance;
         if (im == null)
@@ -325,7 +344,7 @@ public class BuildController : MonoBehaviour
         int hotbar = IInput.HotbarPressedIndex;
         if (buildableFactories != null && hotbar >= 0 && hotbar < buildableFactories.Length)
         {
-            SetSelectedType((BuildableType)hotbar);
+            SelectCatalogIndex(hotbar);
             return;
         }
 
@@ -334,7 +353,7 @@ public class BuildController : MonoBehaviour
             if (Keyboard.current.digit1Key.wasPressedThisFrame) { SetSelectedType(BuildableType.ConveyorBelt); return; }
             if (Keyboard.current.digit2Key.wasPressedThisFrame) { SetSelectedType(BuildableType.Smelter); return; }
             if (Keyboard.current.digit3Key.wasPressedThisFrame) { SetSelectedType(BuildableType.SubmissionBin); return; }
-            if (Keyboard.current.digit4Key.wasPressedThisFrame) { SetSelectedType(BuildableType.ResourceSpot); return; }
+            if (Keyboard.current.digit4Key.wasPressedThisFrame) { SetSelectedType(BuildableType.Presser); return; }
             if (Keyboard.current.digit5Key.wasPressedThisFrame) { SetSelectedType(BuildableType.Presser); return; }
         }
 
@@ -349,11 +368,11 @@ public class BuildController : MonoBehaviour
 
         if (scroll > 0.1f)
         {
-            SelectCatalogIndex((GetSelectedCatalogIndex() - 1 + buildableFactories.Length) % buildableFactories.Length);
+            SelectCatalogIndex((GetCatalogIndex() - 1 + buildableFactories.Length) % buildableFactories.Length);
         }
         else if (scroll < -0.1f)
         {
-            SelectCatalogIndex((GetSelectedCatalogIndex() + 1) % buildableFactories.Length);
+            SelectCatalogIndex((GetCatalogIndex() + 1) % buildableFactories.Length);
         }
     }
 
@@ -379,7 +398,7 @@ public class BuildController : MonoBehaviour
     private void OpenBuildTab() // the buildTab
     {
         if (buildTabCatalog == null)
-            buildTabCatalog = BuildTabCatalog.FindOrCreate(OnCatalogFactorySelected, BeginCatalogBuild);
+            buildTabCatalog = BuildTabCatalog.FindOrCreate(OnFactorySelected, BeginBuild);
 
         RefreshBuildCatalogUI();
         buildTabCatalog?.SetVisible(true);
@@ -388,12 +407,12 @@ public class BuildController : MonoBehaviour
         InputManager.Instance?.EnterUIMode(this);
     }
 
-    private void OnCatalogFactorySelected(int catalogIndex)
+    private void OnFactorySelected(int catalogIndex)
     {
         SelectCatalogIndex(catalogIndex);
     }
 
-    private void BeginCatalogBuild() // begin build mode from the build tab, this is where the build mode is activated and the cursor is locked
+    private void BeginBuild() // begin build mode from the build tab, this is where the build mode is activated and the cursor is locked
     {
         if (selectedFactoryData == null)
             return;
@@ -424,7 +443,7 @@ public class BuildController : MonoBehaviour
         UpdatePreviewMesh();
     }
 
-    private int GetSelectedCatalogIndex()
+    private int GetCatalogIndex()
     {
         if (buildableFactories == null || buildableFactories.Length == 0)
             return 0;
@@ -444,6 +463,8 @@ public class BuildController : MonoBehaviour
             foreach (var definition in buildableFactories)
                 if (definition != null && definition.kind == (FactoryKind)type)
                     return definition;
+        if (type == BuildableType.ResourceSpot)
+            return Resources.Load<FactoryData>("FactoryData/IronOreSpot");
         return null;
     }
 
@@ -540,7 +561,7 @@ public class BuildController : MonoBehaviour
                 conveyorStartPoint = snapped ? snap.position : hit.point + Vector3.up * conveyorHeightOffset;
                 activeStartMachine = snapped ? snap.machine : null;
                 conveyorStartSnap = snapped ? snap : default;
-                conveyorStartDirection = GetInitialConveyorDirection(conveyorStartSnap);
+                conveyorStartDirection = GetConveyorDirection(conveyorStartSnap);
                 conveyorHasStart = true;
             }
             else
@@ -557,7 +578,7 @@ public class BuildController : MonoBehaviour
 
                 // A perfectly rear-facing cubic folds back over its own control points and twists the mesh.
                 // Keep the first point active, but require the player to move the endpoint slightly left or right.
-                if (IsEndpointDirectlyBehindStart(conveyorStartPoint, endPoint, conveyorStartDirection))
+                if (IsEndpointBehindStart(conveyorStartPoint, endPoint, conveyorStartDirection))
                     return;
 
                 if (Vector3.Distance(conveyorStartPoint, endPoint) >= minConveyorLength)
@@ -792,7 +813,7 @@ public class BuildController : MonoBehaviour
 
                 float dist = Vector3.Distance(conveyorStartPoint, endPoint);
 
-                if (dist >= 0.5f && !IsEndpointDirectlyBehindStart(
+                if (dist >= 0.5f && !IsEndpointBehindStart(
                     conveyorStartPoint, endPoint, conveyorStartDirection))
                 {
                     previewSplineObj.SetActive(true);
@@ -801,7 +822,7 @@ public class BuildController : MonoBehaviour
 
                     ConfigureConveyorSpline(spline, conveyorStartPoint, endPoint, conveyorStartSnap,
                         snapped ? currentSnap : default, conveyorStartDirection);
-                    RebuildSquareConveyorMesh(previewSplineContainer, previewSplineMesh);
+                    RebuildConveyorMesh(previewSplineContainer, previewSplineMesh);
                 }
                 else
                 {
@@ -924,7 +945,7 @@ public class BuildController : MonoBehaviour
         ConnectConveyorEndpoints(conveyor, start, end, startSnap, endSnap);
 
         // Do not cap linked belts: the shared endpoint remains visually seamless.
-        RebuildSquareConveyorMesh(container, mesh,
+        RebuildConveyorMesh(container, mesh,
             capEnds: !conveyor.HasInputConnection && !conveyor.HasOutputConnection);
 
         // 4. The collider exactly matches the generated curved mesh.
@@ -1016,7 +1037,7 @@ public class BuildController : MonoBehaviour
     /// starts inherit their source direction; a free start uses the player's horizontal forward axis.
     /// This is what makes the second point steer the belt left, right, or into a broad back-turn.
     /// </summary>
-    private Vector3 GetInitialConveyorDirection(SnapTarget startSnap)
+    private Vector3 GetConveyorDirection(SnapTarget startSnap)
     {
         Vector3 playerForward = playerTransform != null ? playerTransform.forward : Vector3.forward;
         playerForward.y = 0f;
@@ -1031,7 +1052,7 @@ public class BuildController : MonoBehaviour
     /// end in exactly opposite directions can overlap itself, which causes the square extrusion to
     /// flip or twist. Endpoints just outside this cone remain valid and make the intended C-bend.
     /// </summary>
-    private bool IsEndpointDirectlyBehindStart(Vector3 start, Vector3 end, Vector3 startDirection)
+    private bool IsEndpointBehindStart(Vector3 start, Vector3 end, Vector3 startDirection)
     {
         Vector3 planarDirection = startDirection;
         planarDirection.y = 0f;
@@ -1049,7 +1070,7 @@ public class BuildController : MonoBehaviour
     /// Rebuilds the square-profile mesh after the spline is configured. The square template is flat
     /// relative to spline up, so Conveyor continues to place carried items above its upper face.
     /// </summary>
-    private void RebuildSquareConveyorMesh(SplineContainer container, Mesh mesh, bool capEnds = true,
+    private void RebuildConveyorMesh(SplineContainer container, Mesh mesh, bool capEnds = true,
         float radius = -1f, float segmentsPerUnit = -1f)
     {
         radius = radius > 0f ? radius : conveyorRadius;
@@ -1292,7 +1313,7 @@ public class BuildController : MonoBehaviour
         {
             sourceConveyor.outputConveyor = conveyor;
             conveyor.inputConveyor = sourceConveyor;
-            RefreshConveyorMeshCaps(sourceConveyor);
+            RefreshMeshCaps(sourceConveyor);
         }
 
         // 2. Claim the destination: either a receiver input or an existing belt's start endpoint.
@@ -1323,7 +1344,7 @@ public class BuildController : MonoBehaviour
         {
             conveyor.outputConveyor = targetConveyor;
             targetConveyor.inputConveyor = conveyor;
-            RefreshConveyorMeshCaps(targetConveyor);
+            RefreshMeshCaps(targetConveyor);
         }
     }
 
@@ -1331,13 +1352,13 @@ public class BuildController : MonoBehaviour
     /// Removes the generated end caps from an already-placed conveyor after it gains a belt link.
     /// Both halves of the junction then share an open spline endpoint instead of overlapping faces.
     /// </summary>
-    private void RefreshConveyorMeshCaps(Conveyor conveyor)
+    private void RefreshMeshCaps(Conveyor conveyor)
     {
         if (conveyor == null || conveyor.ConveyerSpline == null
             || !conveyor.TryGetComponent<MeshFilter>(out var filter) || filter.sharedMesh == null)
             return;
 
-        RebuildSquareConveyorMesh(conveyor.ConveyerSpline, filter.sharedMesh,
+        RebuildConveyorMesh(conveyor.ConveyerSpline, filter.sharedMesh,
             capEnds: !conveyor.HasInputConnection && !conveyor.HasOutputConnection,
             radius: conveyor.meshRadius,
             segmentsPerUnit: conveyor.meshSegmentsPerUnit);

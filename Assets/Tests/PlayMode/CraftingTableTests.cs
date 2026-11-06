@@ -33,7 +33,7 @@ public class CraftingTableTests
     }
 
     [UnityTest]
-    public IEnumerator GatheringBuildingAndMachineLoadingUseTheSameInventory()
+    public IEnumerator SharedInventoryAcrossActions()
     {
         var map = Object.FindAnyObjectByType<TerrainMapGenerator>();
         var spot = map.GeneratedResources.GetChild(0).GetComponent<ResourceSpot>();
@@ -53,7 +53,7 @@ public class CraftingTableTests
     }
 
     [UnityTest]
-    public IEnumerator AuthoredRecipeButtonsCraftIntoInventoryAndCloseRestoresInput()
+    public IEnumerator RecipeButtonsCraftAndRestoreInput()
     {
         MoveToTable();
         int childCount = tab.GetComponentsInChildren<Transform>(true).Length;
@@ -83,7 +83,7 @@ public class CraftingTableTests
     }
 
     [UnityTest]
-    public IEnumerator MissingIngredientsAndFullOutputLeaveInventoryUnchanged()
+    public IEnumerator FailedCraftLeavesInventoryUnchanged()
     {
         var recipe = tab.entries[0].recipe;
         Assert.That(inventory.TryCraft(recipe, out _), Is.False);
@@ -105,7 +105,7 @@ public class CraftingTableTests
     }
 
     [UnityTest]
-    public IEnumerator FailedBulkPickupNeverPartiallyAddsItems()
+    public IEnumerator FailedPickupNeverPartiallyAdds()
     {
         var item = tab.entries[0].recipe.ingredients[0].item;
         inventory.TryAdd(item, inventory.itemCapacity - 1);
@@ -115,7 +115,7 @@ public class CraftingTableTests
     }
 
     [UnityTest]
-    public IEnumerator TableRangeAndDisableReleaseCraftingInput()
+    public IEnumerator TableRangeReleasesInput()
     {
         player.transform.position = table.transform.position + Vector3.right * 50;
         table.Interact(player);
@@ -137,7 +137,7 @@ public class CraftingTableTests
     private void MoveToTable() => player.transform.position = table.transform.position + new Vector3(0, 1.5f, -2);
 
     [UnityTest]
-    public IEnumerator RepeatedIngredientEntriesRequireTheirCombinedAmount()
+    public IEnumerator DuplicateIngredientsCombine()
     {
         var original = tab.entries[0].recipe;
         var recipe = ScriptableObject.CreateInstance<CraftingRecipe>();

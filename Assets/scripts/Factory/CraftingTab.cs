@@ -25,16 +25,30 @@ public class CraftingTab : MonoBehaviour
     public CraftingTable ActiveTable { get; private set; }
     public bool IsOpen { get; private set; }
     public CraftingRecipe SelectedRecipe { get; private set; }
+    public bool IsCrafting => isCrafting;
+    public float CraftProgress => isCrafting && targetDuration > 0f ? Mathf.Clamp01(craftTimer / targetDuration) : 0f;
+
     private FactoryPlayer player;
     private Inventory inventory;
     private string resultMessage;
+    private bool isCrafting;
+    private float craftTimer;
+    private float targetDuration;
 
     private void Awake()
     {
+        if (entries != null)
+        {
+            for (int i = 0; i < entries.Length; i++)
+            {
+                if (entries[i] != null && entries[i].button != null && entries[i].label == null)
+                    entries[i].label = entries[i].button.GetComponentInChildren<TMP_Text>(true);
+            }
+        }
         for (int i = 0; entries != null && i < entries.Length; i++)
         {
             int index = i;
-            if (entries[i].button != null) entries[i].button.onClick.AddListener(() => Select(index));
+            if (entries[i] != null && entries[i].button != null) entries[i].button.onClick.AddListener(() => Select(index));
         }
         if (craftButton != null) craftButton.onClick.AddListener(CraftSelected);
         if (closeButton != null) closeButton.onClick.AddListener(Close);
@@ -54,6 +68,8 @@ public class CraftingTab : MonoBehaviour
         inventory = Inventory.Instance;
         inventory.Changed += Refresh;
         resultMessage = string.Empty;
+        isCrafting = false;
+        craftTimer = 0f;
         SelectedRecipe = entries != null && entries.Length > 0 ? entries[0].recipe : null;
         SetVisible(true);
         InputManager.Instance?.EnterUIMode(this);
@@ -62,6 +78,7 @@ public class CraftingTab : MonoBehaviour
 
     public void Close()
     {
+        if (isCrafting) CancelCraft();
         if (inventory != null) inventory.Changed -= Refresh;
         inventory = null;
         ActiveTable = null;
@@ -83,7 +100,25 @@ public class CraftingTab : MonoBehaviour
         if (!IsOpen) return;
         if (ActiveTable == null || !ActiveTable.isActiveAndEnabled || player == null
             || !WithinReach(ActiveTable, player) || (InputManager.Instance != null && InputManager.Instance.UICancelPressed))
+        {
+            if (isCrafting) CancelCraft();
             Close();
+            return;
+        }
+
+        if (isCrafting)
+        {
+            craftTimer += Time.deltaTime;
+            float progress = Mathf.Clamp01(craftTimer / Mathf.Max(0.01f, targetDuration));
+            int pct = Mathf.RoundToInt(progress * 100f);
+            if (status != null)
+                status.text = $"Crafting {SelectedRecipe?.DisplayName}... {pct}%";
+
+            if (craftTimer >= targetDuration)
+            {
+                CompleteCraft();
+            }
+        }
     }
 
     private static bool WithinReach(CraftingTable table, FactoryPlayer user)
@@ -97,6 +132,7 @@ public class CraftingTab : MonoBehaviour
     public void Select(int index)
     {
         if (entries == null || index < 0 || index >= entries.Length) return;
+        if (isCrafting) CancelCraft();
         SelectedRecipe = entries[index].recipe;
         resultMessage = string.Empty;
         Refresh();
@@ -104,18 +140,64 @@ public class CraftingTab : MonoBehaviour
 
     public void CraftSelected()
     {
-        if (!IsOpen || player == null || ActiveTable == null || !ActiveTable.isActiveAndEnabled
+        if (!IsOpen || isCrafting || player == null || ActiveTable == null || !ActiveTable.isActiveAndEnabled
             || !WithinReach(ActiveTable, player) || inventory == null) { Close(); return; }
-        resultMessage = inventory.TryCraft(SelectedRecipe, out string reason)
-            ? $"Crafted {SelectedRecipe.outputAmount} {SelectedRecipe.outputItem.DisplayName}." : reason;
+
+        if (!inventory.CanCraft(SelectedRecipe, out string reason))
+        {
+            resultMessage = reason;
+            Refresh();
+            return;
+        }
+
+        if (SelectedRecipe.craftDuration > 0f)
+        {
+            isCrafting = true;
+            craftTimer = 0f;
+            targetDuration = SelectedRecipe.craftDuration;
+            resultMessage = string.Empty;
+            Refresh();
+        }
+        else
+        {
+            CompleteCraft();
+        }
+    }
+
+    public void CompleteCraft()
+    {
+        isCrafting = false;
+        craftTimer = 0f;
+        if (inventory != null && SelectedRecipe != null)
+        {
+            resultMessage = inventory.TryCraft(SelectedRecipe, out string reason)
+                ? $"Crafted {SelectedRecipe.outputAmount} {SelectedRecipe.outputItem.DisplayName}."
+                : reason;
+        }
+        else
+        {
+            resultMessage = "Inventory unavailable.";
+        }
+        Refresh();
+    }
+
+    public void CancelCraft()
+    {
+        isCrafting = false;
+        craftTimer = 0f;
+        resultMessage = "Crafting cancelled.";
         Refresh();
     }
 
     private void Refresh()
     {
         foreach (var entry in entries ?? Array.Empty<RecipeEntry>())
-            if (entry.label != null && entry.recipe != null)
-                entry.label.text = $"{entry.recipe.DisplayName}\n<size=70%>Makes {entry.recipe.outputAmount}</size>";
+        {
+            if (entry == null || entry.recipe == null) continue;
+            var lbl = entry.label ?? entry.button?.GetComponentInChildren<TMP_Text>(true);
+            if (lbl != null)
+                lbl.text = $"{entry.recipe.DisplayName}\n<size=70%>Makes {entry.recipe.outputAmount}</size>";
+        }
         if (recipeName != null) recipeName.text = SelectedRecipe != null ? SelectedRecipe.DisplayName : "Select a recipe";
         var text = new StringBuilder();
         if (SelectedRecipe != null && SelectedRecipe.IsValid)
@@ -127,9 +209,28 @@ public class CraftingTab : MonoBehaviour
         if (requirements != null) requirements.text = text.ToString();
         string reason = "Inventory unavailable.";
         bool canCraft = inventory != null && inventory.CanCraft(SelectedRecipe, out reason);
-        if (craftButton != null) craftButton.interactable = IsOpen && canCraft;
-        if (status != null) status.text = !string.IsNullOrEmpty(resultMessage) ? resultMessage
-            : canCraft ? "Ready to craft. Output goes to your inventory." : reason;
+        if (craftButton != null)
+        {
+            craftButton.interactable = IsOpen && canCraft && !isCrafting;
+            var btnText = craftButton.GetComponentInChildren<TMP_Text>();
+            if (btnText != null)
+                btnText.text = isCrafting ? "CRAFTING..." : "CRAFT ONE";
+        }
+        if (status != null)
+        {
+            if (isCrafting)
+            {
+                int pct = Mathf.RoundToInt((craftTimer / Mathf.Max(0.01f, targetDuration)) * 100f);
+                status.text = $"Crafting {SelectedRecipe?.DisplayName}... {pct}%";
+            }
+            else
+            {
+                string durationNotice = SelectedRecipe != null && SelectedRecipe.craftDuration > 0f
+                    ? $" (Takes {SelectedRecipe.craftDuration:F1}s)" : "";
+                status.text = !string.IsNullOrEmpty(resultMessage) ? resultMessage
+                    : canCraft ? $"Ready to craft{durationNotice}. Output goes to your inventory." : reason;
+            }
+        }
     }
 
     private void OnDisable() => Close();

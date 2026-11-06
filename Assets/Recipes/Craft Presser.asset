@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a272d2ef89c6a594b9ee2f5c600abb81, type: 3}
+  m_Name: Craft Presser
+  m_EditorClassIdentifier: AutomationGame::CraftingRecipe
+  recipeName: Presser
+  ingredients:
+  - item: {fileID: 11400000, guid: a958f79a8f3568f4d82b7ab04330c143, type: 2}
+    amount: 4
+  outputItem: {fileID: 11400000, guid: e0110004000000000000000000000004, type: 2}
+  outputAmount: 1
+  craftDuration: 3

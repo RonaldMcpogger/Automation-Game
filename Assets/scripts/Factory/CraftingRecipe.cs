@@ -15,6 +15,8 @@ public class CraftingRecipe : ScriptableObject
     public CraftingIngredient[] ingredients;
     public Resource outputItem;
     [Min(1)] public int outputAmount = 1;
+    [Tooltip("Crafting time in seconds. 0 = instant.")]
+    [Min(0f)] public float craftDuration = 0f;
     public string DisplayName => string.IsNullOrWhiteSpace(recipeName) ? name : recipeName;
     public bool IsValid
     {

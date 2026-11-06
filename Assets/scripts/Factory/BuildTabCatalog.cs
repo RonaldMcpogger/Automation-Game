@@ -207,10 +207,9 @@ public class BuildTabCatalog : MonoBehaviour
         TextMeshProUGUI label = entry.GetComponentInChildren<TextMeshProUGUI>(true);
         if (label != null)
         {
-            string cost = definition.GetCostText();
-            label.text = string.IsNullOrEmpty(cost) || cost == "Free"
-                ? definition.DisplayName
-                : $"{definition.DisplayName}\n<size=75%><color=#D0D0D0>({cost})</color></size>";
+            int count = Inventory.Instance != null && definition != null && definition.BuildCostResource != null
+                ? Inventory.Instance.GetItemCount(definition.BuildCostResource) : 0;
+            label.text = $"{definition.DisplayName}\n<size=75%><color=#D0D0D0>({count} in inventory)</color></size>";
         }
     }
 
@@ -231,18 +230,16 @@ public class BuildTabCatalog : MonoBehaviour
             var btnText = buildButton.GetComponentInChildren<TextMeshProUGUI>();
             if (btnText != null)
             {
-                btnText.text = canAfford ? "BUILD" : "LOCKED (NEED RESOURCES)";
+                btnText.text = canAfford ? "BUILD" : "NONE IN INVENTORY";
             }
         }
 
         if (FactoryNameDisplay != null)
         {
-            string cost = definition != null ? definition.GetCostText() : "Free";
-            string costColor = canAfford ? "#77DD77" : "#FF6666";
             int current = Inventory.Instance != null && definition != null && definition.BuildCostResource != null
                 ? Inventory.Instance.GetItemCount(definition.BuildCostResource) : 0;
-            string countInfo = definition != null && definition.HasBuildCost ? $" (You have: {current})" : "";
-            FactoryNameDisplay.text = $"{definition.DisplayName}\n<size=65%><color={costColor}>Cost: {cost}{countInfo}</color></size>";
+            string countColor = canAfford ? "#77DD77" : "#FF6666";
+            FactoryNameDisplay.text = $"{definition.DisplayName}\n<size=65%><color={countColor}>In Inventory: {current}</color></size>";
         }
         onSelected?.Invoke(index);
     }

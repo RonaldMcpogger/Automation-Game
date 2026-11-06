@@ -12,7 +12,7 @@ using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
 /// <summary>Authors the weekly prototype into MainScene, using its existing player and belt.</summary>
-public static class FactoryPrototypeSetup
+public static class FactorySetup
 {
     private const string ScenePath = "Assets/Scenes/MainScene.unity";
     private const string ArtPath = "Assets/FactoryPrototype";
@@ -81,6 +81,7 @@ public static class FactoryPrototypeSetup
         if (ingotObj != null)
             buildController.ingotPrefab = ingotObj.GetComponent<FactoryItem>();
         buildController.buildableFactories = Resources.LoadAll<FactoryData>("FactoryData")
+            .Where(data => data.kind != FactoryKind.ResourceSpot)
             .OrderBy(data => data.kind).ToArray();
 
         EditorSceneManager.MarkSceneDirty(scene);
@@ -107,7 +108,9 @@ public static class FactoryPrototypeSetup
             throw new InvalidOperationException("Presser outputItem must be Iron Plate.");
         Debug.Log($"[OK] Presser outputItem is: {presserData.outputItem.DisplayName}");
 
-        var allData = Resources.LoadAll<FactoryData>("FactoryData").OrderBy(d => d.kind).ToArray();
+        var allData = Resources.LoadAll<FactoryData>("FactoryData")
+            .Where(d => d.kind != FactoryKind.ResourceSpot)
+            .OrderBy(d => d.kind).ToArray();
         Debug.Log($"[OK] Total FactoryData in catalog: {allData.Length}");
         for (int i = 0; i < allData.Length; i++)
             Debug.Log($"   Slot {i + 1}: {allData[i].DisplayName} (Kind: {allData[i].kind})");
@@ -260,6 +263,7 @@ public static class FactoryPrototypeSetup
         buildController.redMaterial = red;
         buildController.ingotPrefab = machine.ingotPrefab;
         buildController.buildableFactories = Resources.LoadAll<FactoryData>("FactoryData")
+            .Where(data => data.kind != FactoryKind.ResourceSpot)
             .OrderBy(data => data.kind).ToArray();
 
         controller.GetComponent<CharacterController>().enabled = false;

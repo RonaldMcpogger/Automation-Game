@@ -36,7 +36,7 @@ public class BuildModeTests
     }
 
     [UnityTest]
-    public IEnumerator SwitchingBuildableTypesUpdatesSelectedType()
+    public IEnumerator SwitchingBuildTypesUpdatesSelection()
     {
         buildController.SetBuildModeActive(true);
 
@@ -56,7 +56,7 @@ public class BuildModeTests
     }
 
     [UnityTest]
-    public IEnumerator TwoPointConveyorCreationGeneratesValidBelt()
+    public IEnumerator TwoPointConveyorBuildsBelt()
     {
         Vector3 start = new Vector3(0f, 1f, 0f);
         Vector3 end = new Vector3(0f, 1f, 10f);
@@ -81,7 +81,7 @@ public class BuildModeTests
     }
 
     [UnityTest]
-    public IEnumerator BuildingSmelterBinAndResourceSpotCreatesFunctionalObjects()
+    public IEnumerator BuildCreatesFunctionalObjects()
     {
         Vector3 spotPos = new Vector3(15f, 0f, 15f);
         Vector3 smelterPos = new Vector3(20f, 0f, 20f);
@@ -163,7 +163,7 @@ public class BuildModeTests
     }
 
     [UnityTest]
-    public IEnumerator BuildCatalogSelectionStartsPlacementAndRestoresGameplay()
+    public IEnumerator CatalogSelectionStartsPlacement()
     {
         // Open the same catalog flow used by B, then exercise the actual scene buttons.
         typeof(BuildController).GetMethod("OpenBuildTab", System.Reflection.BindingFlags.Instance
@@ -215,6 +215,26 @@ public class BuildModeTests
         var mesh = slimBelt.GetComponent<MeshFilter>().sharedMesh;
         Assert.That(mesh.bounds.size.x, Is.EqualTo(0.7f).Within(0.02f),
             "The generated slim belt must be 0.7 metres wide.");
+
+        yield return null;
+    }
+    [UnityTest]
+    public IEnumerator BuildMenuExcludesResourceSpots()
+    {
+        Assert.That(buildController.buildableFactories, Is.Not.Null);
+        Assert.That(buildController.buildableFactories.Length, Is.GreaterThanOrEqualTo(4));
+
+        foreach (var factory in buildController.buildableFactories)
+        {
+            Assert.That(factory.kind, Is.Not.EqualTo(FactoryKind.ResourceSpot),
+                "ResourceSpot must not appear in the buildable catalog / build menu.");
+        }
+
+        var kinds = System.Array.ConvertAll(buildController.buildableFactories, f => f.kind);
+        Assert.That(kinds, Does.Contain(FactoryKind.Conveyor));
+        Assert.That(kinds, Does.Contain(FactoryKind.Machine));
+        Assert.That(kinds, Does.Contain(FactoryKind.SubmissionBin));
+        Assert.That(kinds, Does.Contain(FactoryKind.Presser));
 
         yield return null;
     }

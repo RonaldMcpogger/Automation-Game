@@ -4281,7 +4281,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 206, y: -7.957062}
+  m_AnchoredPosition: {x: 206, y: -7.9570312}
   m_SizeDelta: {x: -490.99, y: -91.811}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &863677887
@@ -6896,27 +6896,27 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4997348774638902066, guid: 6e016049a1659d248900fa5fe562e0a4, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4997348774638902066, guid: 6e016049a1659d248900fa5fe562e0a4, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4997348774638902066, guid: 6e016049a1659d248900fa5fe562e0a4, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 150
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4997348774638902066, guid: 6e016049a1659d248900fa5fe562e0a4, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 150
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4997348774638902066, guid: 6e016049a1659d248900fa5fe562e0a4, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 125
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4997348774638902066, guid: 6e016049a1659d248900fa5fe562e0a4, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -95
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5186733820835064477, guid: 6e016049a1659d248900fa5fe562e0a4, type: 3}
       propertyPath: m_AnchorMax.x
@@ -10705,14 +10705,6 @@ PrefabInstance:
     - target: {fileID: 2547222863206207831, guid: d0aaa59d11b2b17498744d06d9b654f7, type: 3}
       propertyPath: m_Name
       value: Crafting Tab
-      objectReference: {fileID: 0}
-    - target: {fileID: 7039104539835847753, guid: d0aaa59d11b2b17498744d06d9b654f7, type: 3}
-      propertyPath: m_AnchorMax.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7039104539835847753, guid: d0aaa59d11b2b17498744d06d9b654f7, type: 3}
-      propertyPath: m_AnchorMax.y
-      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

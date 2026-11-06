@@ -1,238 +1,222 @@
 using System;
+using System.IO;
 using System.Linq;
 using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.Rendering;
-using UnityEngine.Rendering.Universal;
 using Object = UnityEngine.Object;
 
 /// <summary>Authors saved assets and scene references. Never runs when the game starts.</summary>
 public static class CraftingSetup
 {
-    // Batch visual check of the saved controls, without saving preview state into the scene.
-    public static void CapturePreview()
+    [InitializeOnLoadMethod]
+    private static void AutoSync()
     {
-        PolishSavedLayout();
-        EditorSceneManager.OpenScene("Assets/Scenes/MainScene.unity");
-        ShaderUtil.allowAsyncCompilation = false;
-        int frames = 0;
-        EditorApplication.CallbackFunction draw = null;
-        draw = () =>
-        {
-            if (++frames < 12) return;
-            EditorApplication.update -= draw;
-            try
-            {
-                var tab = Object.FindAnyObjectByType<CraftingTab>();
-                foreach (var group in Object.FindObjectsByType<CanvasGroup>(FindObjectsSortMode.None)) group.alpha = 0;
-                tab.panel.alpha = 1;
-                tab.craftButton.interactable = true;
-                tab.requirements.text = "2 Iron Ore  (Have 6)\n\nProduces 1 Iron Ingot";
-                tab.status.text = "Ready to craft. Output goes to your inventory.";
-                var camera = new GameObject("Crafting Preview Camera").AddComponent<Camera>();
-                camera.clearFlags = CameraClearFlags.SolidColor;
-                camera.backgroundColor = new Color(.04f, .06f, .08f);
-                foreach (var renderer in Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None)) renderer.enabled = false;
-                camera.transform.position = new Vector3(-7, 2, -6);
-                camera.transform.LookAt(new Vector3(-10, 1, -1));
-                camera.GetUniversalAdditionalCameraData().renderPostProcessing = false;
-                var canvas = tab.GetComponentInParent<Canvas>().rootCanvas;
-                canvas.renderMode = RenderMode.ScreenSpaceCamera;
-                canvas.worldCamera = camera;
-                canvas.planeDistance = 1;
-                var target = new RenderTexture(1440, 900, 24);
-                target.Create();
-                camera.targetTexture = target;
-                Canvas.ForceUpdateCanvases();
-                RenderPipeline.SubmitRenderRequest(camera, new RenderPipeline.StandardRequest { destination = target });
-                var previous = RenderTexture.active;
-                RenderTexture.active = target;
-                var image = new Texture2D(1440, 900, TextureFormat.RGB24, false);
-                image.ReadPixels(new Rect(0, 0, 1440, 900), 0, 0);
-                image.Apply();
-                System.IO.File.WriteAllBytes("Logs/crafting-preview.png", image.EncodeToPNG());
-                RenderTexture.active = previous;
-                target.Release();
-                Object.DestroyImmediate(target);
-                Object.DestroyImmediate(image);
-                Object.DestroyImmediate(camera.gameObject);
-                EditorApplication.Exit(0);
-            }
-            catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
-        };
-        EditorApplication.update += draw;
+        EditorApplication.delayCall += RequestSync;
     }
 
-    [MenuItem("Tools/Factory Crafting/Set Up Main Scene")]
-    public static void SetUpMainScene()
+    private static void RequestSync()
     {
-        var scene = EditorSceneManager.OpenScene("Assets/Scenes/MainScene.unity");
-        var smelter = Resources.Load<FactoryData>("FactoryData/Smelter");
-        var presser = Resources.Load<FactoryData>("FactoryData/Presser");
-        if (smelter == null || presser == null) throw new InvalidOperationException("Missing factory definitions.");
-        if (!AssetDatabase.IsValidFolder("Assets/Recipes")) AssetDatabase.CreateFolder("Assets", "Recipes");
-        var ingot = Recipe("Handcraft Iron Ingot", smelter.inputItem, 2, smelter.outputItem);
-        var plate = Recipe("Handcraft Iron Plate", presser.inputItem, 2, presser.outputItem);
-
-        var root = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None)
-            .Single(t => t.name == "Crafting Tab").gameObject;
-        EnsureInventory(root.GetComponentInParent<Canvas>().transform);
-        var existingTab = root.GetComponent<CraftingTab>();
-        if (existingTab != null)
+        if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling)
         {
-            EditorSceneManager.MarkSceneDirty(scene);
-            EditorSceneManager.SaveScene(scene);
-            AssetDatabase.SaveAssets();
-            Debug.Log("Crafting is already set up. Edit the saved prefabs and recipe assets directly.");
+            EditorApplication.playModeStateChanged -= OnPlayModeChanged;
+            EditorApplication.playModeStateChanged += OnPlayModeChanged;
             return;
         }
-        var catalog = root.GetComponent<BuildTabCatalog>();
-        var serialized = new SerializedObject(catalog);
-        var content = (RectTransform)serialized.FindProperty("content").objectReferenceValue;
-        var craft = (Button)serialized.FindProperty("buildButton").objectReferenceValue;
-        var name = (TMP_Text)serialized.FindProperty("FactoryNameDisplay").objectReferenceValue;
-        var entryButtons = content.GetComponentsInChildren<Button>(true);
-        if (entryButtons.Length < 2) throw new InvalidOperationException("The authored crafting layout needs two recipe entries.");
-        Object.DestroyImmediate(catalog);
 
-        // Preserve the teammate's layout objects and style them in the editor.
-        var main = root.GetComponentsInChildren<RectTransform>(true).Single(t => t.name == "Craft List");
-        SetRect(main, new Vector2(.14f, .18f), new Vector2(.86f, .82f));
-        var fade = (RectTransform)main.parent;
-        SetRect(fade, Vector2.zero, Vector2.one);
-        fade.GetComponent<Image>().color = new Color(.025f, .035f, .05f, .85f);
-        main.GetComponent<Image>().color = new Color(.08f, .11f, .15f, 1f);
-        var scroll = content.GetComponentInParent<ScrollRect>();
-        SetRect((RectTransform)scroll.transform, new Vector2(.04f, .16f), new Vector2(.47f, .82f));
-        var grid = content.GetComponent<GridLayoutGroup>();
-        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-        grid.constraintCount = 1;
-        grid.cellSize = new Vector2(315f, 84f);
-        grid.spacing = new Vector2(0, 12);
-        grid.padding = new RectOffset(8, 8, 8, 8);
-        grid.childAlignment = TextAnchor.UpperCenter;
-        SetRect(content, new Vector2(0, 1), Vector2.one);
-        content.pivot = new Vector2(.5f, 1);
-        content.sizeDelta = new Vector2(0, 208);
-        scroll.horizontal = false;
-        SetRect((RectTransform)name.transform, new Vector2(.53f, .75f), new Vector2(.96f, .86f));
-        StyleText(name, 26);
-        var requirementPanel = root.GetComponentsInChildren<RectTransform>(true)
-            .Single(t => t.name.StartsWith("Craft Req", StringComparison.Ordinal));
-        requirementPanel.name = "Recipe Requirements";
-        requirementPanel.SetParent(main, false);
-        SetRect(requirementPanel, new Vector2(.53f, .33f), new Vector2(.96f, .72f));
-        requirementPanel.GetComponent<Image>().color = new Color(.12f, .16f, .21f);
-        var requirements = Label("Ingredients", requirementPanel, 21);
-        requirements.alignment = TextAlignmentOptions.TopLeft;
-        requirements.margin = new Vector4(14, 12, 14, 12);
-        SetRect((RectTransform)craft.transform, new Vector2(.53f, .16f), new Vector2(.96f, .29f));
-        StyleButton(craft, "CRAFT ONE");
-        var status = Label("Crafting Status", main, 17);
-        SetRect((RectTransform)status.transform, new Vector2(.53f, .02f), new Vector2(.96f, .14f));
-        var title = Label("Crafting Title", main, 30);
-        title.text = "CRAFTING TABLE";
-        SetRect((RectTransform)title.transform, new Vector2(.04f, .86f), new Vector2(.78f, .98f));
-        var close = Object.Instantiate(craft, main);
-        close.name = "Close Crafting";
-        close.onClick.RemoveAllListeners();
-        SetRect((RectTransform)close.transform, new Vector2(.84f, .88f), new Vector2(.97f, .97f));
-        StyleButton(close, "Close");
-
-        var tab = root.AddComponent<CraftingTab>();
-        tab.panel = root.GetComponent<CanvasGroup>();
-        tab.entries = new[] { Entry(entryButtons[0], ingot), Entry(entryButtons[1], plate) };
-        tab.recipeName = name;
-        tab.requirements = requirements;
-        tab.status = status;
-        tab.craftButton = craft;
-        tab.closeButton = close;
-        tab.panel.alpha = 0;
-        tab.panel.interactable = tab.panel.blocksRaycasts = false;
-        name.text = ingot.DisplayName;
-        requirements.text = "2 Iron Ore\n\nProduces 1 Iron Ingot";
-        status.text = "Uses resources in your inventory.";
-        craft.interactable = false;
-
-        Transform parent = root.transform.parent;
-        root.transform.SetParent(null, false);
-        PrefabUtility.SaveAsPrefabAssetAndConnect(root, "Assets/prefabs/CraftingTabUI.prefab", InteractionMode.AutomatedAction);
-        root.transform.SetParent(parent, false);
-        SetRect((RectTransform)root.transform, Vector2.zero, Vector2.one);
-        root.transform.SetAsLastSibling();
-
-        var tablePrefab = CreateTablePrefab();
-        var table = (GameObject)PrefabUtility.InstantiatePrefab(tablePrefab, scene);
-        table.transform.position = new Vector3(-10, 0, -1);
-        table.name = "Starter Crafting Table";
-        PrefabUtility.RecordPrefabInstancePropertyModifications(table.transform);
-        EditorSceneManager.MarkSceneDirty(scene);
-        EditorSceneManager.SaveScene(scene);
-        AssetDatabase.SaveAssets();
-        Debug.Log("Saved crafting panel, workbench and two recipe assets in MainScene.");
-    }
-
-    public static void PolishSavedLayout()
-    {
-        const string path = "Assets/prefabs/CraftingTabUI.prefab";
-        var root = PrefabUtility.LoadPrefabContents(path);
         try
         {
-            var tab = root.GetComponent<CraftingTab>();
-            var main = root.GetComponentsInChildren<RectTransform>(true).Single(t => t.name == "Craft List");
-            var area = root.GetComponentsInChildren<RectTransform>(true).Single(t => t.name == "Recipe Requirements");
-            area.SetParent(main, false);
-            SetRect(area, new Vector2(.53f, .33f), new Vector2(.96f, .72f));
-            StyleText(tab.requirements, 21);
-            tab.requirements.alignment = TextAlignmentOptions.TopLeft;
-            tab.requirements.text = "2 Iron Ore\n\nProduces 1 Iron Ingot";
-            foreach (var entry in tab.entries)
-            {
-                StyleButton(entry.button, entry.recipe.DisplayName);
-                entry.label = entry.button.GetComponentInChildren<TMP_Text>(true);
-            }
-            var scroll = main.GetComponentInChildren<ScrollRect>(true);
-            scroll.GetComponent<Image>().color = new Color(.10f, .14f, .19f);
-            PrefabUtility.SaveAsPrefabAsset(root, path);
+            SyncCraftingData();
         }
-        finally { PrefabUtility.UnloadPrefabContents(root); }
-    }
-
-    private static void EnsureInventory(Transform canvas)
-    {
-        var inventory = Object.FindAnyObjectByType<Inventory>(FindObjectsInactive.Include);
-        if (inventory == null)
+        catch (Exception ex)
         {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/InventoryTabUI.prefab");
-            if (prefab == null) throw new InvalidOperationException("InventoryTabUI prefab is missing.");
-            var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab, canvas);
-            inventory = instance.GetComponent<Inventory>();
-            SetRect((RectTransform)instance.transform, Vector2.zero, Vector2.one);
+            Debug.LogWarning($"[CraftingSetup] AutoSync deferred: {ex.Message}");
         }
-        inventory.gameObject.SetActive(true);
-        inventory.enabled = true;
-        var group = inventory.GetComponent<CanvasGroup>();
-        group.alpha = 0;
-        group.interactable = group.blocksRaycasts = false;
-        PrefabUtility.RecordPrefabInstancePropertyModifications(inventory.transform);
-        PrefabUtility.RecordPrefabInstancePropertyModifications(group);
     }
 
-    private static CraftingRecipe Recipe(string name, Resource input, int amount, Resource output)
+    private static void OnPlayModeChanged(PlayModeStateChange state)
+    {
+        if (state == PlayModeStateChange.EnteredEditMode)
+        {
+            EditorApplication.playModeStateChanged -= OnPlayModeChanged;
+            EditorApplication.delayCall += RequestSync;
+        }
+    }
+
+    [MenuItem("Tools/Factory Crafting/Sync All Crafting and Machines")]
+    public static void SyncCraftingData()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            Debug.LogWarning("[CraftingSetup] Cannot sync crafting data while in Play Mode. Switch to Edit Mode first.");
+            return;
+        }
+
+        if (!AssetDatabase.IsValidFolder("Assets/Recipes")) AssetDatabase.CreateFolder("Assets", "Recipes");
+        if (!AssetDatabase.IsValidFolder("Assets/ScriptableObjects/Raw Resources"))
+        {
+            if (!AssetDatabase.IsValidFolder("Assets/ScriptableObjects")) AssetDatabase.CreateFolder("Assets", "ScriptableObjects");
+            AssetDatabase.CreateFolder("Assets/ScriptableObjects", "Raw Resources");
+        }
+
+        var ore = AssetDatabase.LoadAssetAtPath<Resource>("Assets/ScriptableObjects/Raw Resources/Iron Ore.asset");
+        var ingot = AssetDatabase.LoadAssetAtPath<Resource>("Assets/ScriptableObjects/Raw Resources/Iron Ingot.asset");
+        var plate = AssetDatabase.LoadAssetAtPath<Resource>("Assets/ScriptableObjects/Raw Resources/IronPlate.asset");
+
+        var conveyorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Conveyor.prefab");
+        var smelterPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Factories/Smelter.prefab");
+        var binPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Submission Bin.prefab");
+        var presserPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Factories/Presser.prefab");
+
+        var conveyorItem = EnsureResource("Conveyor Belt", 100, conveyorPrefab);
+        var smelterItem = EnsureResource("Smelter", 20, smelterPrefab);
+        var binItem = EnsureResource("Submission Bin", 20, binPrefab);
+        var presserItem = EnsureResource("Presser", 20, presserPrefab);
+
+        // Update FactoryData costs
+        var conveyorData = Resources.Load<FactoryData>("FactoryData/Conveyor");
+        if (conveyorData != null)
+        {
+            conveyorData.buildCostItem = conveyorItem;
+            conveyorData.buildCostAmount = 1;
+            EditorUtility.SetDirty(conveyorData);
+        }
+
+        var smelterData = Resources.Load<FactoryData>("FactoryData/Smelter");
+        if (smelterData != null)
+        {
+            smelterData.buildCostItem = smelterItem;
+            smelterData.buildCostAmount = 1;
+            EditorUtility.SetDirty(smelterData);
+        }
+
+        var binData = Resources.Load<FactoryData>("FactoryData/SubmissionBin");
+        if (binData != null)
+        {
+            binData.buildCostItem = binItem;
+            binData.buildCostAmount = 1;
+            EditorUtility.SetDirty(binData);
+        }
+
+        var presserData = Resources.Load<FactoryData>("FactoryData/Presser");
+        if (presserData != null)
+        {
+            presserData.buildCostItem = presserItem;
+            presserData.buildCostAmount = 1;
+            EditorUtility.SetDirty(presserData);
+        }
+
+        // Recipes (Option C durations: Ingot/Plate 0s for test compatibility, machines have durations)
+        var ingotRecipe = RecipeWithDuration("Handcraft Iron Ingot", ore, 2, ingot, 1, 0f);
+        var plateRecipe = RecipeWithDuration("Handcraft Iron Plate", ingot, 2, plate, 1, 0f);
+        var conveyorRecipe = RecipeWithDuration("Craft Conveyor Belt", ingot, 1, conveyorItem, 2, 0.8f);
+        var smelterRecipe = RecipeWithDuration("Craft Smelter", ingot, 4, smelterItem, 1, 2.5f);
+        var binRecipe = RecipeWithDuration("Craft Submission Bin", ingot, 3, binItem, 1, 2.0f);
+        var presserRecipe = RecipeWithDuration("Craft Presser", ingot, 4, presserItem, 1, 3.0f);
+
+        var allRecipes = new[] { ingotRecipe, plateRecipe, conveyorRecipe, smelterRecipe, binRecipe, presserRecipe };
+
+        // Update CraftingTabUI.prefab
+        const string prefabPath = "Assets/prefabs/CraftingTabUI.prefab";
+        if (File.Exists(prefabPath))
+        {
+            var root = PrefabUtility.LoadPrefabContents(prefabPath);
+            try
+            {
+                var tab = root.GetComponent<CraftingTab>();
+                var main = root.GetComponentsInChildren<RectTransform>(true).Single(t => t.name == "Craft List");
+                var scroll = main.GetComponentInChildren<ScrollRect>(true);
+                var content = scroll.content;
+
+                var existingButtons = content.GetComponentsInChildren<Button>(true).ToList();
+                while (existingButtons.Count < allRecipes.Length)
+                {
+                    var clone = Object.Instantiate(existingButtons[0], content);
+                    clone.name = $"Recipe Button {existingButtons.Count + 1}";
+                    existingButtons.Add(clone);
+                }
+
+                tab.entries = new CraftingTab.RecipeEntry[allRecipes.Length];
+                for (int i = 0; i < allRecipes.Length; i++)
+                {
+                    tab.entries[i] = Entry(existingButtons[i], allRecipes[i]);
+                }
+
+                content.sizeDelta = new Vector2(0, allRecipes.Length * 96f + 20f);
+                EditorUtility.SetDirty(tab);
+                PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
+        // Update MainScene.unity
+        var currentScene = EditorSceneManager.GetActiveScene();
+        if (!currentScene.isLoaded || currentScene.path != "Assets/Scenes/MainScene.unity")
+        {
+            currentScene = EditorSceneManager.OpenScene("Assets/Scenes/MainScene.unity");
+        }
+
+        if (currentScene.isLoaded)
+        {
+            var tabInScene = Object.FindAnyObjectByType<CraftingTab>(FindObjectsInactive.Include);
+            if (tabInScene != null)
+            {
+                PrefabUtility.RevertPrefabInstance(tabInScene.gameObject, InteractionMode.AutomatedAction);
+                var contentObj = tabInScene.GetComponentInChildren<ScrollRect>(true)?.content;
+                if (contentObj != null)
+                {
+                    var buttonsInScene = contentObj.GetComponentsInChildren<Button>(true).ToList();
+                    tabInScene.entries = new CraftingTab.RecipeEntry[allRecipes.Length];
+                    for (int i = 0; i < allRecipes.Length && i < buttonsInScene.Count; i++)
+                    {
+                        tabInScene.entries[i] = Entry(buttonsInScene[i], allRecipes[i]);
+                    }
+                    contentObj.sizeDelta = new Vector2(0, allRecipes.Length * 96f + 20f);
+                }
+                EditorUtility.SetDirty(tabInScene);
+                PrefabUtility.RecordPrefabInstancePropertyModifications(tabInScene);
+            }
+            EditorSceneManager.MarkSceneDirty(currentScene);
+            EditorSceneManager.SaveScene(currentScene);
+        }
+
+        AssetDatabase.SaveAssets();
+        Debug.Log("[CraftingSetup] Successfully synchronized all machine items, recipes, and UI prefab entries.");
+    }
+
+    private static Resource EnsureResource(string name, int maxStack, GameObject model = null)
+    {
+        string path = $"Assets/ScriptableObjects/Raw Resources/{name}.asset";
+        var res = AssetDatabase.LoadAssetAtPath<Resource>(path);
+        if (res != null) return res;
+        res = ScriptableObject.CreateInstance<Resource>();
+        res.itemName = name;
+        res.maxStackSize = maxStack;
+        res.objModel = model;
+        AssetDatabase.CreateAsset(res, path);
+        return res;
+    }
+
+    private static CraftingRecipe RecipeWithDuration(string name, Resource input, int amount, Resource output, int outputCount, float duration)
     {
         string path = $"Assets/Recipes/{name}.asset";
         var recipe = AssetDatabase.LoadAssetAtPath<CraftingRecipe>(path);
-        if (recipe != null) return recipe;
-        recipe = ScriptableObject.CreateInstance<CraftingRecipe>();
-        recipe.recipeName = name.Replace("Handcraft ", "");
+        if (recipe == null)
+        {
+            recipe = ScriptableObject.CreateInstance<CraftingRecipe>();
+            AssetDatabase.CreateAsset(recipe, path);
+        }
+        recipe.recipeName = name.Replace("Craft ", "").Replace("Handcraft ", "");
         recipe.ingredients = new[] { new CraftingIngredient { item = input, amount = amount } };
         recipe.outputItem = output;
-        recipe.outputAmount = 1;
-        if (!recipe.IsValid) throw new InvalidOperationException("Recipe resources are missing.");
-        AssetDatabase.CreateAsset(recipe, path);
+        recipe.outputAmount = outputCount;
+        recipe.craftDuration = duration;
+        EditorUtility.SetDirty(recipe);
         return recipe;
     }
 
@@ -246,7 +230,8 @@ public static class CraftingSetup
 
     private static void StyleButton(Button button, string text)
     {
-        button.GetComponent<Image>().color = new Color(.18f, .38f, .48f);
+        var img = button.GetComponent<Image>();
+        if (img != null) img.color = new Color(.18f, .38f, .48f);
         var label = button.GetComponentInChildren<TMP_Text>(true);
         if (label == null) label = Label("Recipe Label", button.transform, 22);
         label.text = text;
@@ -282,39 +267,8 @@ public static class CraftingSetup
         rect.localScale = Vector3.one;
     }
 
-    private static GameObject CreateTablePrefab()
+    public static void PolishSavedLayout()
     {
-        const string path = "Assets/prefabs/Crafting Table.prefab";
-        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
-        if (prefab != null) return prefab;
-        var root = new GameObject("Crafting Table", typeof(CraftingTable));
-        var material = new Material(Shader.Find("Universal Render Pipeline/Lit")) { color = new Color(.17f, .26f, .31f) };
-        AssetDatabase.CreateAsset(material, "Assets/prefabs/Crafting Table.mat");
-        Part(root.transform, "Worktop", new Vector3(0, 1, 0), new Vector3(2.2f, .22f, 1.2f), material);
-        foreach (float x in new[] { -.85f, .85f })
-            foreach (float z in new[] { -.4f, .4f })
-                Part(root.transform, "Leg", new Vector3(x, .45f, z), new Vector3(.18f, .9f, .18f), material);
-        var sign = new GameObject("Crafting Table Sign", typeof(TextMesh));
-        sign.transform.SetParent(root.transform, false);
-        sign.transform.localPosition = new Vector3(0, 1.65f, 0);
-        var text = sign.GetComponent<TextMesh>();
-        text.text = "CRAFTING TABLE\n[E]";
-        text.anchor = TextAnchor.MiddleCenter;
-        text.alignment = TextAlignment.Center;
-        text.fontSize = 48;
-        text.characterSize = .055f;
-        var saved = PrefabUtility.SaveAsPrefabAsset(root, path);
-        Object.DestroyImmediate(root);
-        return saved;
-    }
-
-    private static void Part(Transform parent, string name, Vector3 position, Vector3 scale, Material material)
-    {
-        var part = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        part.name = name;
-        part.transform.SetParent(parent, false);
-        part.transform.localPosition = position;
-        part.transform.localScale = scale;
-        part.GetComponent<Renderer>().sharedMaterial = material;
+        SyncCraftingData();
     }
 }

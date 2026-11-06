@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 
-public class CraftingAndProgressionTests
+public class ProgressionTests
 {
     private FactoryPlayer player;
     private BuildController buildController;
@@ -42,7 +42,7 @@ public class CraftingAndProgressionTests
     }
 
     [UnityTest]
-    public IEnumerator SmelterBuildCostRequiresOreAndDeductsUponCrafting()
+    public IEnumerator SmelterBuildCostDeduction()
     {
         Assert.That(player.OreCount, Is.Zero);
 
@@ -69,7 +69,7 @@ public class CraftingAndProgressionTests
     }
 
     [UnityTest]
-    public IEnumerator SubmissionBinReceivesIngotAndAllowsPlayerToTakeIt()
+    public IEnumerator BinStoresAndYieldsIngots()
     {
         Assert.That(bin.SubmittedCount, Is.Zero);
         Assert.That(bin.StoredCount, Is.Zero);
@@ -99,7 +99,7 @@ public class CraftingAndProgressionTests
     }
 
     [UnityTest]
-    public IEnumerator EndToEndProgressionFlow_Gather_Smelt_Bin_TakeIngots_CraftPresser()
+    public IEnumerator EndToEndProgressionTest()
     {
         // 1. Gather ore
         spot.gatherInterval = 0.01f;
@@ -146,7 +146,7 @@ public class CraftingAndProgressionTests
     }
 
     [UnityTest]
-    public IEnumerator HotbarResourceBarIsVisibleAndReflectsInventory()
+    public IEnumerator HotbarResourceBarUpdates()
     {
         Assert.That(player.resourceBarText, Is.Not.Null, "ResourceBarText should be present directly above hotbar.");
         Assert.That(player.promptText, Is.Not.Null, "PromptText should be present.");
@@ -163,5 +163,73 @@ public class CraftingAndProgressionTests
         yield return null;
 
         Assert.That(player.resourceBarText.text, Does.Contain("ORE: 3"));
+    }
+    [UnityTest]
+    public IEnumerator CraftMachineAndPlaceFromInventory()
+    {
+        var inventory = Inventory.Instance;
+        var tab = Object.FindAnyObjectByType<CraftingTab>();
+        var table = Object.FindAnyObjectByType<CraftingTable>();
+        Assert.That(tab, Is.Not.Null);
+        Assert.That(table, Is.Not.Null);
+
+        // Verify 6 authored recipe entries in CraftingTab
+        Assert.That(tab.entries.Length, Is.EqualTo(6), "CraftingTab should have 6 authored recipe entries.");
+
+        // Move player to table and interact
+        player.transform.position = table.transform.position + new Vector3(0, 1.5f, -2);
+        table.Interact(player);
+        Assert.That(tab.IsOpen, Is.True);
+
+        // Find Smelter recipe entry
+        int smelterIndex = -1;
+        for (int i = 0; i < tab.entries.Length; i++)
+        {
+            if (tab.entries[i].recipe != null && tab.entries[i].recipe.DisplayName.Contains("Smelter"))
+            {
+                smelterIndex = i;
+                break;
+            }
+        }
+        Assert.That(smelterIndex, Is.GreaterThanOrEqualTo(0));
+
+        // Select Smelter recipe
+        tab.Select(smelterIndex);
+        var smelterRecipe = tab.SelectedRecipe;
+        var smelterItem = smelterRecipe.outputItem;
+
+        // Give 4 iron ingots
+        var ingot = smelterRecipe.ingredients[0].item;
+        Assert.That(inventory.TryAdd(ingot, 4), Is.True);
+        Assert.That(inventory.GetItemCount(ingot), Is.EqualTo(4));
+        Assert.That(inventory.GetItemCount(smelterItem), Is.Zero);
+
+        // Craft the Smelter
+        tab.CraftSelected();
+        float timeout = Time.time + smelterRecipe.craftDuration + 3f;
+        while (tab.IsCrafting && Time.time < timeout)
+            yield return null;
+
+        // Verify Smelter item is now in inventory, ingots are consumed
+        Assert.That(inventory.GetItemCount(smelterItem), Is.EqualTo(1));
+        Assert.That(inventory.GetItemCount(ingot), Is.Zero);
+
+        // Close crafting table
+        tab.Close();
+        Assert.That(tab.IsOpen, Is.False);
+
+        // Build Controller should now afford Smelter via the crafted item
+        buildController.SetSelectedType(BuildableType.Smelter);
+        Assert.That(buildController.CanAfford(BuildableType.Smelter, out string affordMsg), Is.True, affordMsg);
+
+        // Build and place Smelter
+        Vector3 pos = new Vector3(40, 0, 40);
+        var placedSmelter = buildController.BuildSmelter(pos, Quaternion.identity);
+        buildController.DeductBuildCost(BuildableType.Smelter);
+
+        Assert.That(placedSmelter, Is.Not.Null);
+        Assert.That(inventory.GetItemCount(smelterItem), Is.Zero, "Deducting build cost must consume the crafted Smelter item.");
+
+        yield return null;
     }
 }
