@@ -1,3 +1,4 @@
+#if UNITY_EDITOR
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -99,3 +100,4 @@ public class PickupOutlineTargetingEditor : Editor
         AssetDatabase.SaveAssets();
     }
 }
+#endif
