@@ -222,11 +222,8 @@ public class BuildTabCatalog : MonoBehaviour
         if (selectedEntry != null)
             selectedEntry.color = hoverColor;
 
-        var player = FindAnyObjectByType<FactoryPlayer>();
-
-        // brother im changing this to inventory 
-        bool canAfford = Inventory.Instance == null || definition == null || !definition.HasBuildCost
-            || Inventory.Instance.HasItem(definition.BuildCostResource, definition.BuildCostQty);
+        var builder = FindAnyObjectByType<BuildController>();
+        bool canAfford = builder != null && builder.CanAfford(definition, out _);
 
         if (buildButton != null)
         {

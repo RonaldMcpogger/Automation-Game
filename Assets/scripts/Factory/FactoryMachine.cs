@@ -46,7 +46,7 @@ public class FactoryMachine : FactoryInteractable
         : $"Waiting for ore | Ore queued: {BufferedOre}";
 
     // / <summary>Returns the prompt to show on the UI for this machine.</summary>
-    public override string GetPrompt(FactoryPlayer player) => player.OreCount == 0
+    public override string GetPrompt(FactoryPlayer player) => player.GetItemCount(InputItem) == 0
         ? $"{factoryData?.DisplayName ?? "SMELTER"} - gather {InputItem?.DisplayName ?? "iron ore"} at the resource spot"
         : BufferedOre >= inputCapacity ? "SMELTER - input full"
         : "Press [{key}] to load ore into the smelter";

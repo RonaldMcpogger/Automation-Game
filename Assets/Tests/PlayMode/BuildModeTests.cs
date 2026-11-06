@@ -180,6 +180,10 @@ public class BuildModeTests
         Assert.That(buildController.SelectedType, Is.EqualTo(BuildableType.Smelter));
         var buildButton = (UnityEngine.UI.Button)typeof(BuildTabCatalog).GetField("buildButton",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(catalog);
+        Assert.That(buildButton.interactable, Is.False, "A paid building starts locked without resources.");
+        var smelterData = Resources.Load<FactoryData>("FactoryData/Smelter");
+        player.TryCollect(smelterData.BuildCostResource, smelterData.BuildCostQty);
+        smelterEntry.onClick.Invoke();
         Assert.That(buildButton.interactable, Is.True);
         buildButton.onClick.Invoke();
         yield return null;

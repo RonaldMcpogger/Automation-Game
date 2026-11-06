@@ -9,6 +9,23 @@ public class Inventory : MonoBehaviour
 {
     /// <summary>The active player inventory, used by world pickups.</summary>
     public static Inventory Instance { get; private set; }
+    [Header("Capacity")]
+    [Min(1)] public int itemCapacity = 20;
+    public event System.Action Changed;
+    public int TotalCount
+    {
+        get { int count = 0; foreach (var slot in slots) count += slot.amount; return count; }
+    }
+    public Resource CurrentResource
+    {
+        get
+        {
+            if (lastAdded != null && GetItemCount(lastAdded) > 0) return lastAdded;
+            foreach (var slot in slots) if (slot.item != null && slot.amount > 0) return slot.item;
+            return null;
+        }
+    }
+    private Resource lastAdded;
 
     [Header("UI")]
     [SerializeField] private CanvasGroup InventoryGroup; // inventory canvas group
@@ -46,6 +63,7 @@ public class Inventory : MonoBehaviour
             return;
         }
         Instance = this;
+        for (int i = 0; i < InventorySlotList.Length; i++) slots.Add(new Slot());
     }
 
     /// <summary>Builds slot views, wires the Drop button, and starts with the panel hidden.</summary>
@@ -69,7 +87,7 @@ public class Inventory : MonoBehaviour
             return;
 
         inventoryOpenAction ??= input.GetExtraAction("InventoryOpen", "<Keyboard>/i");
-        if (inventoryOpenAction != null && inventoryOpenAction.WasPressedThisFrame())
+        if (inventoryOpenAction != null && inventoryOpenAction.WasPressedThisFrame() && (isOpen || input.GameplayEnabled))
             SetOpen(!isOpen);
         else if (isOpen && input.UICancelPressed)
             SetOpen(false);
@@ -95,7 +113,8 @@ public class Inventory : MonoBehaviour
     /// </summary>
     public bool TryAdd(Resource item, int amount = 1)
     {
-        if (item == null || amount <= 0)
+        // Check the complete transfer before touching any stacks.
+        if (!CanAdd(item, amount))
             return false;
 
         int remaining = amount;
@@ -109,7 +128,7 @@ public class Inventory : MonoBehaviour
             remaining -= added;
             if (remaining == 0)
             {
-                RefreshUI();
+                NotifyChanged(item);
                 return true;
             }
         }
@@ -124,7 +143,7 @@ public class Inventory : MonoBehaviour
             remaining -= added;
             if (remaining == 0)
             {
-                RefreshUI();
+                NotifyChanged(item);
                 return true;
             }
         }
@@ -135,6 +154,90 @@ public class Inventory : MonoBehaviour
 
     /// <summary>Attempts to transfer a FactoryItem from the world; failed transfers leave it in place.</summary>
     public bool TryPickup(FactoryItem worldItem) => worldItem != null && TryAdd(worldItem.itemData);
+
+    public bool CanAdd(Resource item, int amount = 1)
+    {
+        if (item == null || amount <= 0 || TotalCount + (long)amount > itemCapacity) return false;
+        long room = 0;
+        int limit = Mathf.Max(1, item.maxStackSize);
+        foreach (var slot in slots)
+            if (slot.item == null) room += limit;
+            else if (slot.item == item) room += Mathf.Max(0, limit - slot.amount);
+        return room >= amount;
+    }
+
+    private void NotifyChanged(Resource added = null)
+    {
+        if (added != null) lastAdded = added;
+        RefreshUI();
+        Changed?.Invoke();
+    }
+
+    // Plan a complete exchange in a copy. Failure never consumes ingredients or adds partial output.
+    public bool CanCraft(CraftingRecipe recipe, out string reason) => PlanCraft(recipe, out _, out reason);
+
+    public bool TryCraft(CraftingRecipe recipe, out string reason)
+    {
+        if (!PlanCraft(recipe, out var planned, out reason)) return false;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            slots[i].item = planned[i].item;
+            slots[i].amount = planned[i].amount;
+        }
+        NotifyChanged(recipe.outputItem);
+        return true;
+    }
+
+    private bool PlanCraft(CraftingRecipe recipe, out Slot[] planned, out string reason)
+    {
+        planned = null;
+        reason = "Recipe is not configured.";
+        if (recipe == null || !recipe.IsValid) return false;
+        var requirements = new Dictionary<Resource, long>();
+        foreach (var ingredient in recipe.ingredients)
+        {
+            requirements.TryGetValue(ingredient.item, out long count);
+            requirements[ingredient.item] = count + ingredient.amount;
+        }
+        foreach (var requirement in requirements)
+            if (GetItemCount(requirement.Key) < requirement.Value)
+            {
+                reason = $"Need {requirement.Value} {requirement.Key.DisplayName}.";
+                return false;
+            }
+
+        planned = new Slot[slots.Count];
+        for (int i = 0; i < slots.Count; i++)
+        {
+            planned[i] = new Slot { item = slots[i].item, amount = slots[i].amount };
+            if (planned[i].item != null && requirements.TryGetValue(planned[i].item, out long remaining))
+            {
+                int taken = (int)System.Math.Min(remaining, planned[i].amount);
+                requirements[planned[i].item] -= taken;
+                planned[i].amount -= taken;
+                if (planned[i].amount == 0) planned[i].item = null;
+            }
+        }
+        long total = recipe.outputAmount;
+        foreach (var slot in planned) total += slot.amount;
+        reason = "Inventory full. Make room for the output.";
+        if (total > itemCapacity) return false;
+        int left = recipe.outputAmount;
+        int limit = Mathf.Max(1, recipe.outputItem.maxStackSize);
+        // Fill matching stacks before using newly freed slots.
+        for (int pass = 0; pass < 2; pass++)
+            foreach (var slot in planned)
+            {
+                if (pass == 0 ? slot.item != recipe.outputItem : slot.item != null) continue;
+                int added = Mathf.Min(Mathf.Max(0, limit - slot.amount), left);
+                if (added <= 0) continue;
+                slot.item = recipe.outputItem;
+                slot.amount += added;
+                left -= added;
+                if (left == 0) { reason = string.Empty; return true; }
+            }
+        return false;
+    }
 
     /// <summary>Compatibility entry point for UI events and scripts adding one resource.</summary>
     public void AddItem(Resource item) => TryAdd(item);
@@ -164,7 +267,7 @@ public class Inventory : MonoBehaviour
             slot.item = null;
             selectedSlot = -1;
         }
-        RefreshUI();
+        NotifyChanged();
     }
 
     /// <summary>Returns true when the inventory contains at least one resource with this name.</summary>
@@ -187,7 +290,7 @@ public class Inventory : MonoBehaviour
     }
 
     /// <summary>Shows the panel and enters UI mode, or hides it and restores gameplay input.</summary>
-    private void SetOpen(bool open)
+    public void SetOpen(bool open)
     {
         isOpen = open;
         if (InventoryGroup != null)
@@ -233,7 +336,8 @@ public class Inventory : MonoBehaviour
             view.SetActive(true);
             InventorySlotList[i] = view;
 
-            var slot = new Slot { button = view.GetComponent<Button>() };
+            var slot = slots[i];
+            slot.button = view.GetComponent<Button>();
             var icon = view.transform.Find("Item Image");
             var itemName = view.transform.Find("Item Name");
             var amount = view.transform.Find("Amount Stack");
@@ -248,7 +352,6 @@ public class Inventory : MonoBehaviour
                 slot.button.onClick.RemoveAllListeners();
                 slot.button.onClick.AddListener(() => SelectSlot(index));
             }
-            slots.Add(slot);
         }
     }
 
@@ -352,7 +455,7 @@ public class Inventory : MonoBehaviour
                 break;
         }
 
-        RefreshUI();
+        NotifyChanged();
         return true;
     }
 }

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,25 +13,13 @@ public class FactoryPlayer : MonoBehaviour
     public Text machineText;
     public Text promptText;
     public Text resourceBarText;
-    [Min(1)] public int oreCapacity = 20;
+    // Compatibility views for existing machine scripts. Inventory owns every quantity.
+    public int oreCapacity => Inventory.Instance != null ? Inventory.Instance.itemCapacity : 20;
     [Min(0.5f)] public float interactionRange = 4f;
-
-    public int OreCount { get; private set; }
-    public Resource CarriedItem { get; private set; }
-
-    private readonly Dictionary<Resource, int> inventory = new();
+    public Resource CarriedItem => Inventory.Instance != null ? Inventory.Instance.CurrentResource : null;
+    public int OreCount => GetItemCount(CarriedItem ?? DefaultOreResource);
+    public int TotalCarriedCount => Inventory.Instance != null ? Inventory.Instance.TotalCount : 0;
     private GameObject runtimeHudCanvas;
-
-    public int TotalCarriedCount
-    {
-        get
-        {
-            int total = 0;
-            foreach (var kvp in inventory)
-                total += kvp.Value;
-            return total > 0 ? total : OreCount;
-        }
-    }
 
     public Resource DefaultOreResource
     {
@@ -183,128 +170,23 @@ public class FactoryPlayer : MonoBehaviour
         return txt;
     }
 
-    public int GetItemCount(Resource item)
-    {
-        if (item == null)
-            item = CarriedItem ?? DefaultOreResource;
+    public int GetItemCount(Resource item) => Inventory.Instance != null
+        ? Inventory.Instance.GetItemCount(item ?? CarriedItem ?? DefaultOreResource) : 0;
 
-        if (item != null && inventory.TryGetValue(item, out int count))
-            return count;
-
-        if (item != null && item == DefaultOreResource && OreCount > 0 && !inventory.ContainsKey(item))
-            return OreCount;
-
-        return item == null ? OreCount : (CarriedItem == item ? OreCount : 0);
-    }
-
-    public bool HasItem(Resource item, int amount)
-    {
-        if (amount <= 0) return true;
-        return GetItemCount(item) >= amount;
-    }
-
-    public bool TryCollectOre()
-    {
-        return TryCollect(null, 1);
-    }
-
-    public bool TryCollect(Resource item)
-    {
-        return TryCollect(item, 1);
-    }
-
-    public bool TryCollect(Resource item, int amount)
-    {
-        if (amount <= 0)
-            return true;
-
-        if (item == null)
-            item = CarriedItem ?? DefaultOreResource;
-
-        if (TotalCarriedCount + amount > oreCapacity) // full capacity
-            return false;
-
-        if (item == null)
-        {
-            OreCount += amount;
-            return true;
-        }
-
-        if (!inventory.ContainsKey(item))
-            inventory[item] = 0;
-
-        inventory[item] += amount;
-        CarriedItem = item;
-        OreCount = inventory[item];
-        return true;
-    }
-
-    public int TakeOre(int requested)
-    {
-        return TakeItem(null, requested);
-    }
-
+    public bool HasItem(Resource item, int amount) => amount <= 0 || GetItemCount(item) >= amount;
+    public bool TryCollectOre() => TryCollect(DefaultOreResource);
+    public bool TryCollect(Resource item) => TryCollect(item, 1);
+    public bool TryCollect(Resource item, int amount) => amount <= 0 || (Inventory.Instance != null
+        && Inventory.Instance.TryAdd(item ?? CarriedItem ?? DefaultOreResource, amount));
+    public int TakeOre(int requested) => TakeItem(DefaultOreResource, requested);
     public int TakeItem(Resource item, int requested)
     {
-        if (requested <= 0)
-            return 0;
-
-        if (item == null)
-            item = CarriedItem ?? DefaultOreResource;
-
-        if (item == null)
-        {
-            int takenLegacy = Mathf.Clamp(requested, 0, OreCount);
-            OreCount -= takenLegacy;
-            return takenLegacy;
-        }
-
-        if (!inventory.TryGetValue(item, out int currentCount) || currentCount <= 0)
-        {
-            if ((CarriedItem == item || item == DefaultOreResource) && OreCount > 0)
-            {
-                int takenFallback = Mathf.Clamp(requested, 0, OreCount);
-                OreCount -= takenFallback;
-                if (OreCount == 0 && CarriedItem == item) CarriedItem = null;
-                return takenFallback;
-            }
-            return 0;
-        }
-
-        int taken = Mathf.Clamp(requested, 0, currentCount);
-        int remaining = currentCount - taken;
-
-        if (remaining > 0)
-        {
-            inventory[item] = remaining;
-            if (CarriedItem == item)
-                OreCount = remaining;
-        }
-        else
-        {
-            inventory.Remove(item);
-            if (CarriedItem == item)
-            {
-                CarriedItem = null;
-                OreCount = 0;
-                foreach (var kvp in inventory)
-                {
-                    CarriedItem = kvp.Key;
-                    OreCount = kvp.Value;
-                    break;
-                }
-            }
-        }
-
-        return taken;
+        item ??= CarriedItem ?? DefaultOreResource;
+        int taken = Mathf.Clamp(requested, 0, GetItemCount(item));
+        return taken > 0 && Inventory.Instance != null && Inventory.Instance.TryRemove(item, taken) ? taken : 0;
     }
-
-    public bool ConsumeItem(Resource item, int amount)
-    {
-        if (!HasItem(item, amount))
-            return false;
-        return TakeItem(item, amount) == amount;
-    }
+    public bool ConsumeItem(Resource item, int amount) => amount <= 0 || (Inventory.Instance != null
+        && Inventory.Instance.TryRemove(item, amount));
 
     private void Update()
     {

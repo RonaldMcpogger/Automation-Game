@@ -1,6 +1,6 @@
 {
     "name": "AutomationGame.PlayModeTests",
-    "references": ["AutomationGame", "FPSCore", "Unity.Splines", "UnityEngine.UI"],
+    "references": ["AutomationGame", "FPSCore", "Unity.Splines", "UnityEngine.UI", "Unity.TextMeshPro"],
     "optionalUnityReferences": ["TestAssemblies"],
     "autoReferenced": false
 }

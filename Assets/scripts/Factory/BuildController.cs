@@ -156,7 +156,7 @@ public class BuildController : MonoBehaviour
 
         if (!inventory.HasItem(costItem, costAmount)) // change to ivnentory
         {
-            int current = player.GetItemCount(costItem);
+            int current = inventory.GetItemCount(costItem);
             message = $"Requires {data.GetCostText()} (You have: {current})";
             return false;
         }
@@ -256,6 +256,10 @@ public class BuildController : MonoBehaviour
 
     private void Update()
     {
+        // A workbench or inventory owns the cursor until its panel is closed.
+        if (InputManager.Instance != null && !InputManager.Instance.GameplayEnabled
+            && !IsBuildModeActive && (buildTabCatalog == null || !buildTabCatalog.IsVisible))
+            return;
         HandleToggleInput();
 
         if (!IsBuildModeActive)

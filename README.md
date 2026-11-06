@@ -7,10 +7,33 @@ MainScene starts in the construction sandbox. The original guided demo is
 preserved in the disabled **First Factory** group. Enable that group in the
 Hierarchy before Play if you want to use the original production loop below.
 
+## Crafting table and shared inventory
+
+The **Starter Crafting Table** is placed near spawn at `(-10, 0, -1)`.
+Look at its worktop within interaction range and press **E** to open crafting.
+Select **Iron Ingot** or **Iron Plate**, then click **CRAFT ONE**. Close the panel
+with **Close** or **Esc** to resume movement. Crafting requires a nearby active table.
+
+- Handcraft 1 iron ingot from 2 iron ore.
+- Handcraft 1 iron plate from 2 iron ingots.
+- Inputs are consumed from the inventory and outputs are added to it immediately.
+- Missing ingredients or insufficient output space leave all quantities unchanged.
+- Press **I** to view inventory. Gathering, pickups, dropping, machines, bin
+  withdrawals, building costs and crafting share `Inventory` as their sole store.
+  The prototype total limit remains 20 items and is editable as **Item Capacity**
+  on the Inventory component. Resource stack limits and slot space also apply.
+
+`Assets/prefabs/CraftingTabUI.prefab` contains the saved controls and recipe
+entries. Runtime code only binds and updates these controls. Edit the layout in
+Unity and edit recipes under `Assets/Recipes/`. Each recipe supports multiple
+ingredients and an output quantity. `Assets/prefabs/Crafting Table.prefab` is the
+reusable workbench. Initial setup is under **Tools > Factory Crafting** and is
+only an editor authoring tool. The saved MainScene is already wired.
+
 ## Original production loop
 
 1. Walk to the brown **Iron Ore Spot** and look at it. Hold **E** to gather ore
-   (one every 0.4 seconds; pouch capacity is configured on the player).
+   (one every 0.4 seconds; total capacity is configured on the Inventory component).
 2. Look at the **Smelter** and press **E** to transfer as much ore as its buffer
    can accept (capacity 10). Each ore takes 2 seconds to become one iron ingot.
 3. Ingots automatically enter the existing curved conveyor and reach the

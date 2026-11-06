@@ -46,8 +46,8 @@ public class ResourceSpot : FactoryInteractable
         if (player == null)
             return string.Empty;
 
-        return player.TotalCarriedCount >= player.oreCapacity
-            ? "Ore pouch full - load the smelter [E] or build [B]"
+        return Inventory.Instance == null || !Inventory.Instance.CanAdd(resourceData)
+            ? "Inventory full - load a machine, craft, or build [B]"
             : $"Hold [{{key}}] to gather {ResourceName}";
     }
 
@@ -57,11 +57,7 @@ public class ResourceSpot : FactoryInteractable
             return;
 
         EnsureResourceData();
-        if (Inventory.Instance != null && Inventory.Instance.TryAdd(resourceData))
-        {
-            Debug.Log("picked up+" + resourceData.DisplayName);
-            if (player.TryCollect(resourceData)) // remove in the future as more items are added
-                nextGatherTime = Time.time + gatherInterval;
-        }
+        if (player.TryCollect(resourceData))
+            nextGatherTime = Time.time + gatherInterval;
     }
 }
