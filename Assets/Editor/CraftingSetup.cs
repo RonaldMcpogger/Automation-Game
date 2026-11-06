@@ -7,6 +7,8 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 
 /// <summary>Authors saved assets and scene references. Never runs when the game starts.</summary>
 public static class CraftingSetup
@@ -181,10 +183,12 @@ public static class CraftingSetup
                 EditorUtility.SetDirty(tabInScene);
                 PrefabUtility.RecordPrefabInstancePropertyModifications(tabInScene);
             }
+            EnsureUIInfrastructureInScene(currentScene);
             EditorSceneManager.MarkSceneDirty(currentScene);
             EditorSceneManager.SaveScene(currentScene);
         }
 
+        EnsureUIInfrastructureInPlayerPrefab();
         AssetDatabase.SaveAssets();
         Debug.Log("[CraftingSetup] Successfully synchronized all machine items, recipes, and UI prefab entries.");
     }
@@ -270,5 +274,54 @@ public static class CraftingSetup
     public static void PolishSavedLayout()
     {
         SyncCraftingData();
+    }
+
+    public static void EnsureUIInfrastructureInScene(UnityEngine.SceneManagement.Scene scene)
+    {
+        if (!scene.IsValid() || !scene.isLoaded) return;
+
+        var canvases = Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include);
+        foreach (var canvas in canvases)
+        {
+            if (canvas.GetComponent<GraphicRaycaster>() == null)
+            {
+                canvas.gameObject.AddComponent<GraphicRaycaster>();
+                Debug.Log($"[CraftingSetup] Added GraphicRaycaster to {canvas.gameObject.name} in scene {scene.name}");
+            }
+        }
+
+        var es = Object.FindAnyObjectByType<EventSystem>(FindObjectsInactive.Include);
+        if (es == null)
+        {
+            var go = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
+            var module = go.GetComponent<InputSystemUIInputModule>();
+            module.AssignDefaultActions();
+            Debug.Log($"[CraftingSetup] Created EventSystem with InputSystemUIInputModule in scene {scene.name}");
+        }
+        else if (es.GetComponent<InputSystemUIInputModule>() == null)
+        {
+            var module = es.gameObject.AddComponent<InputSystemUIInputModule>();
+            module.AssignDefaultActions();
+            Debug.Log($"[CraftingSetup] Added InputSystemUIInputModule to EventSystem in scene {scene.name}");
+        }
+    }
+
+    public static void EnsureUIInfrastructureInPlayerPrefab()
+    {
+        string playerPrefabPath = "Assets/FPSCore/Runtime/Prefabs/Player.prefab";
+        if (!File.Exists(playerPrefabPath)) return;
+
+        using (var editScope = new PrefabUtility.EditPrefabContentsScope(playerPrefabPath))
+        {
+            var canvases = editScope.prefabContentsRoot.GetComponentsInChildren<Canvas>(true);
+            foreach (var canvas in canvases)
+            {
+                if (canvas.GetComponent<GraphicRaycaster>() == null)
+                {
+                    canvas.gameObject.AddComponent<GraphicRaycaster>();
+                    Debug.Log($"[CraftingSetup] Added GraphicRaycaster to {canvas.gameObject.name} in Player.prefab");
+                }
+            }
+        }
     }
 }

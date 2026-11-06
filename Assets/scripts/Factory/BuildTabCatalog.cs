@@ -31,10 +31,20 @@ public class BuildTabCatalog : MonoBehaviour
     [SerializeField]
     private GameObject DataEntryPrefab;
 
+    private FactoryData[] currentDefinitions;
+
     private readonly Color hoverColor = new(0.18f, 0.45f, 0.7f, 0.95f);
 
-    
     public bool IsVisible => canvasGroup != null && canvasGroup.alpha > 0.01f;
+
+    public void BindCallbacks(Action<int> selectedCallback, Action buildRequestedCallback)
+    {
+        onSelected = selectedCallback;
+        onBuildRequested = buildRequestedCallback;
+        buildButtonConfigured = false;
+        if (buildButton != null)
+            ConfigureBuildButton();
+    }
 
     public static BuildTabCatalog FindOrCreate(Action<int> onSelected, Action onBuildRequested)
     {
@@ -60,8 +70,7 @@ public class BuildTabCatalog : MonoBehaviour
             catalog = tab.gameObject.AddComponent<BuildTabCatalog>();
         }
 
-        catalog.onSelected = onSelected;
-        catalog.onBuildRequested = onBuildRequested;
+        catalog.BindCallbacks(onSelected, onBuildRequested);
         catalog.Initialize();
         return catalog;
     }
@@ -69,6 +78,7 @@ public class BuildTabCatalog : MonoBehaviour
     public void SetDefinitions(FactoryData[] definitions)
     {
         Initialize();
+        currentDefinitions = definitions;
         if (content == null)
             return;
 
@@ -102,24 +112,38 @@ public class BuildTabCatalog : MonoBehaviour
         }
     }
 
+    public void SelectCatalogIndex(int index)
+    {
+        if (generatedEntries == null || index < 0 || index >= generatedEntries.Count)
+            return;
+
+        var entry = generatedEntries[index];
+        if (entry != null && entry.TryGetComponent<Image>(out var image))
+        {
+            FactoryData def = (currentDefinitions != null && index < currentDefinitions.Length) ? currentDefinitions[index] : null;
+            SelectEntry(image, index, def);
+        }
+    }
+
     public void SetVisible(bool visible)
     {
-        // Hiding also happens during scene teardown. Never create UI/input objects on that path.
-        if (visible)
-            Initialize();
-        else
-            canvasGroup ??= GetComponent<CanvasGroup>();
+        canvasGroup ??= GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
         if (canvasGroup == null)
             return;
 
         if (visible)
-            gameObject.SetActive(true);
+        {
+            if (!gameObject.activeSelf)
+                gameObject.SetActive(true);
+            Initialize();
+        }
+
         canvasGroup.alpha = visible ? 1f : 0f;
         canvasGroup.interactable = visible;
         canvasGroup.blocksRaycasts = visible;
     }
 
-    private void Initialize()
+    public void Initialize()
     {
         EnsureUiInput();
         canvasGroup ??= GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
@@ -156,19 +180,8 @@ public class BuildTabCatalog : MonoBehaviour
     // the scene needs an EventSystem that understands the Input System.
     private void EnsureUiInput()
     {
-        Canvas canvas = GetComponentInParent<Canvas>();
-        if (canvas != null && canvas.GetComponent<GraphicRaycaster>() == null)
-            canvas.gameObject.AddComponent<GraphicRaycaster>();
-
-        EventSystem eventSystem = FindAnyObjectByType<EventSystem>(FindObjectsInactive.Include);
-        if (eventSystem == null)
-        {
-            var eventSystemObject = new GameObject("EventSystem", typeof(EventSystem));
-            eventSystem = eventSystemObject.GetComponent<EventSystem>();
-        }
-
-        if (eventSystem.GetComponent<InputSystemUIInputModule>() == null)
-            eventSystem.gameObject.AddComponent<InputSystemUIInputModule>().AssignDefaultActions();
+        UIBootstrap.EnsureEventSystem();
+        UIBootstrap.EnsureGraphicRaycasters();
     }
 
     private void CreateEntry(FactoryData definition, int index)

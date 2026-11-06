@@ -1,3 +1,4 @@
+using UnityEngine.InputSystem;
 using System;
 using System.Text;
 using TMPro;
@@ -60,7 +61,7 @@ public class CraftingTab : MonoBehaviour
         if (table == null || !table.isActiveAndEnabled || user == null || panel == null
             || Inventory.Instance == null || !WithinReach(table, user)) return;
         var build = user.GetComponent<BuildController>();
-        if (build != null && build.IsBuildModeActive) build.SetBuildModeActive(false);
+        if (build != null) { if (build.IsBuildModeActive) build.SetBuildModeActive(false); build.CloseBuildTab(); }
         Inventory.Instance.SetOpen(false);
         Close();
         ActiveTable = table;
@@ -99,7 +100,7 @@ public class CraftingTab : MonoBehaviour
     {
         if (!IsOpen) return;
         if (ActiveTable == null || !ActiveTable.isActiveAndEnabled || player == null
-            || !WithinReach(ActiveTable, player) || (InputManager.Instance != null && InputManager.Instance.UICancelPressed))
+            || !WithinReach(ActiveTable, player) || (InputManager.Instance != null && InputManager.Instance.UICancelPressed) || (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame))
         {
             if (isCrafting) CancelCraft();
             Close();

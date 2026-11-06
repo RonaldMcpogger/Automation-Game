@@ -213,16 +213,23 @@ public class BuildController : MonoBehaviour
 
     private void Awake()
     {
-        enforceBuildCosts = true;
-        ResolveBuildCatalog();
-        if (viewCamera == null)
-            viewCamera = GetComponentInChildren<Camera>() ?? Camera.main;
+        try
+        {
+            enforceBuildCosts = true;
+            ResolveBuildCatalog();
+            if (viewCamera == null)
+                viewCamera = GetComponentInChildren<Camera>() ?? Camera.main;
 
-        if (playerTransform == null)
-            playerTransform = transform;
+            if (playerTransform == null)
+                playerTransform = transform;
 
-        ResolveMaterials();
-        RegisterInputActions();
+            ResolveMaterials();
+            RegisterInputActions();
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[BuildController] Exception during Awake: {ex}");
+        }
     }
 
     private void ResolveBuildCatalog()
@@ -252,34 +259,71 @@ public class BuildController : MonoBehaviour
 
     private void Start()
     {
-        RegisterInputActions();
+        try
+        {
+            EnsureInputActions();
 
-        buildTabCatalog = BuildTabCatalog.FindOrCreate(OnFactorySelected, BeginBuild);
-        RefreshBuildCatalogUI();
-        buildTabCatalog?.SetVisible(false);
+            if (buildTabCatalog == null)
+                buildTabCatalog = BuildTabCatalog.FindOrCreate(OnFactorySelected, BeginBuild);
+            else
+            {
+                buildTabCatalog.BindCallbacks(OnFactorySelected, BeginBuild);
+                buildTabCatalog.Initialize();
+            }
+
+            buildTabCatalog?.SetVisible(false);
+            RefreshBuildCatalogUI();
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[BuildController] Exception during Start: {ex}");
+        }
     }
 
     private void RegisterInputActions()
+    {
+        EnsureInputActions();
+    }
+
+    private void EnsureInputActions()
     {
         var im = InputManager.Instance;
         if (im == null)
             return;
 
-        buildModeAction = im.GetExtraAction("BuildMode", "<Keyboard>/b", "<Gamepad>/dpad/up");
-        buildPlaceAction = im.GetExtraAction("BuildPlace", "<Mouse>/leftButton", "<Gamepad>/rightTrigger");
-        buildCancelAction = im.GetExtraAction("BuildCancel", "<Mouse>/rightButton", "<Gamepad>/buttonEast");
-        buildRotateAction = im.GetExtraAction("BuildRotate", "<Keyboard>/r", "<Gamepad>/rightShoulder");
-        buildWidthAction = im.GetExtraAction("BuildWidth", "<Keyboard>/t", "<Gamepad>/leftShoulder");
-        buildScrollAction = im.GetExtraVector2Action("BuildScroll", "<Mouse>/scroll");
+        buildModeAction ??= im.GetExtraAction("BuildMode", "<Keyboard>/b", "<Gamepad>/dpad/up");
+        buildPlaceAction ??= im.GetExtraAction("BuildPlace", "<Mouse>/leftButton", "<Gamepad>/rightTrigger");
+        buildCancelAction ??= im.GetExtraAction("BuildCancel", "<Mouse>/rightButton", "<Gamepad>/buttonEast");
+        buildRotateAction ??= im.GetExtraAction("BuildRotate", "<Keyboard>/r", "<Gamepad>/rightShoulder");
+        buildWidthAction ??= im.GetExtraAction("BuildWidth", "<Keyboard>/t", "<Gamepad>/leftShoulder");
+        buildScrollAction ??= im.GetExtraVector2Action("BuildScroll", "<Mouse>/scroll");
+    }
+
+    public void CloseBuildTab()
+    {
+        if (buildTabCatalog != null && buildTabCatalog.IsVisible)
+        {
+            InputManager.Instance?.ExitUIMode(this);
+            buildTabCatalog.SetVisible(false);
+        }
     }
 
     private void Update()
     {
+        EnsureInputActions();
+
+        bool bPressed = (buildModeAction != null && buildModeAction.WasPressedThisFrame())
+            || (Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame);
+
         // A workbench or inventory owns the cursor until its panel is closed.
-        if (InputManager.Instance != null && !InputManager.Instance.GameplayEnabled
-            && !IsBuildModeActive && (buildTabCatalog == null || !buildTabCatalog.IsVisible))
+        // If another UI menu owns the cursor, only allow input if the user explicitly presses B to open build menu.
+        bool otherMenuOpen = InputManager.Instance != null && !InputManager.Instance.GameplayEnabled
+            && !IsBuildModeActive && (buildTabCatalog == null || !buildTabCatalog.IsVisible);
+
+        if (otherMenuOpen && !bPressed)
             return;
-        HandleToggleInput();
+
+        HandleToggleInput(bPressed);
 
         if (!IsBuildModeActive)
             return;
@@ -292,49 +336,52 @@ public class BuildController : MonoBehaviour
         UpdateUI();
     }
 
-    private void HandleToggleInput() // condition for buildmode
+    private void HandleToggleInput(bool togglePressed)
     {
-        bool togglePressed = false;
-        if (buildModeAction != null && buildModeAction.WasPressedThisFrame()) // button present and was pressed this frame trigger
-            togglePressed = true;
-        else if (Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame) // this but for keyboard
-            togglePressed = true;
+        bool cancelPressed = (InputManager.Instance != null && InputManager.Instance.UICancelPressed)
+            || (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame);
 
         if (togglePressed)
         {
             if (IsBuildModeActive)
+            {
                 SetBuildModeActive(false);
+            }
             else if (buildTabCatalog != null && buildTabCatalog.IsVisible)
             {
-                InputManager.Instance?.ExitUIMode(this);
-                buildTabCatalog.SetVisible(false);
+                CloseBuildTab();
             }
             else
+            {
+                Inventory.Instance?.SetOpen(false);
+
+                var craftingTab = FindAnyObjectByType<CraftingTab>(FindObjectsInactive.Include);
+                if (craftingTab != null && craftingTab.IsOpen)
+                    craftingTab.Close();
+
                 OpenBuildTab();
+            }
             return;
         }
 
-        if (IsBuildModeActive)
+        if (buildTabCatalog != null && buildTabCatalog.IsVisible && cancelPressed)
         {
-            bool cancelPressed = false;
-            if (InputManager.Instance != null && InputManager.Instance.UICancelPressed)
-                cancelPressed = true;
-            else if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
-                cancelPressed = true;
+            CloseBuildTab();
+            return;
+        }
 
-            if (cancelPressed)
+        if (IsBuildModeActive && cancelPressed)
+        {
+            if (conveyorHasStart)
             {
-                if (conveyorHasStart)
-                {
-                    conveyorHasStart = false;
-                    activeStartMachine = null;
-                    conveyorStartSnap = default;
-                    conveyorStartDirection = Vector3.zero;
-                }
-                else
-                {
-                    SetBuildModeActive(false);
-                }
+                conveyorHasStart = false;
+                activeStartMachine = null;
+                conveyorStartSnap = default;
+                conveyorStartDirection = Vector3.zero;
+            }
+            else
+            {
+                SetBuildModeActive(false);
             }
         }
     }
@@ -399,9 +446,15 @@ public class BuildController : MonoBehaviour
     {
         if (buildTabCatalog == null)
             buildTabCatalog = BuildTabCatalog.FindOrCreate(OnFactorySelected, BeginBuild);
+        else
+            buildTabCatalog.BindCallbacks(OnFactorySelected, BeginBuild);
 
-        RefreshBuildCatalogUI();
         buildTabCatalog?.SetVisible(true);
+        RefreshBuildCatalogUI();
+        if (buildTabCatalog != null && buildableFactories != null && buildableFactories.Length > 0)
+        {
+            buildTabCatalog.SelectCatalogIndex(GetCatalogIndex());
+        }
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
         InputManager.Instance?.EnterUIMode(this);
@@ -1452,64 +1505,99 @@ public class BuildController : MonoBehaviour
 
     private void ResolveMaterials()
     {
-#if UNITY_EDITOR
-        if (machineMaterial == null)
-            machineMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Machine.mat");
-        if (binMaterial == null)
-            binMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Bin.mat");
-        if (oreMaterial == null)
-            oreMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Iron Ore.mat");
-        if (yellowMaterial == null)
-            yellowMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Safety Yellow.mat");
-        if (greenMaterial == null)
-            greenMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Working.mat");
-        if (redMaterial == null)
-            redMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Blocked.mat");
-
-        if (ingotPrefab == null)
+        try
         {
-            var ingotObj = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/FactoryPrototype/Iron Ingot.prefab");
-            if (ingotObj != null)
-                ingotPrefab = ingotObj.GetComponent<FactoryItem>();
-        }
+#if UNITY_EDITOR
+            if (machineMaterial == null)
+                machineMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Machine.mat");
+            if (binMaterial == null)
+                binMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Bin.mat");
+            if (oreMaterial == null)
+                oreMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Iron Ore.mat");
+            if (yellowMaterial == null)
+                yellowMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Safety Yellow.mat");
+            if (greenMaterial == null)
+                greenMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Working.mat");
+            if (redMaterial == null)
+                redMaterial = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Blocked.mat");
+
+            if (ingotPrefab == null)
+            {
+                var ingotObj = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Resources/Iron Ingot.prefab");
+                if (ingotObj != null)
+                    ingotPrefab = ingotObj.GetComponent<FactoryItem>();
+            }
 #endif
 
-        var litShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-        if (machineMaterial == null)
-            machineMaterial = new Material(litShader) { color = new Color(0.12f, 0.23f, 0.29f), name = "Machine_Runtime" };
-        if (binMaterial == null)
-            binMaterial = new Material(litShader) { color = new Color(0.12f, 0.15f, 0.18f), name = "Bin_Runtime" };
-        if (oreMaterial == null)
-            oreMaterial = new Material(litShader) { color = new Color(0.48f, 0.24f, 0.12f), name = "Ore_Runtime" };
-        if (yellowMaterial == null)
-            yellowMaterial = new Material(litShader) { color = new Color(1f, 0.65f, 0.08f), name = "Yellow_Runtime" };
-        if (greenMaterial == null)
-            greenMaterial = new Material(litShader) { color = new Color(0.2f, 0.9f, 0.4f), name = "Green_Runtime" };
-        if (redMaterial == null)
-            redMaterial = new Material(litShader) { color = new Color(0.95f, 0.25f, 0.15f), name = "Red_Runtime" };
+            Shader litShader = null;
+            if (machineMaterial != null)
+                litShader = machineMaterial.shader;
+            else if (binMaterial != null)
+                litShader = binMaterial.shader;
 
-        if (ingotPrefab == null)
-        {
-            var existingMachine = FindAnyObjectByType<FactoryMachine>();
-            if (existingMachine != null && existingMachine.ingotPrefab != null)
-                ingotPrefab = existingMachine.ingotPrefab;
-        }
+            litShader ??= Shader.Find("Universal Render Pipeline/Lit")
+                ?? Shader.Find("Universal Render Pipeline/Simple Lit")
+                ?? Shader.Find("Universal Render Pipeline/Unlit")
+                ?? Shader.Find("Standard");
 
-        if (ghostMaterial == null)
-        {
-            var unlitShader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
-            ghostMaterial = new Material(unlitShader)
+            if (litShader == null)
             {
-                name = "BuildGhost_Runtime",
-                color = new Color(0.2f, 0.85f, 1f, 0.45f)
-            };
-            ghostMaterial.SetFloat("_Surface", 1);
-            ghostMaterial.SetFloat("_Blend", 0);
-            ghostMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-            ghostMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-            ghostMaterial.SetInt("_ZWrite", 0);
-            ghostMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
-            ghostMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                var anyRenderer = FindAnyObjectByType<Renderer>();
+                if (anyRenderer != null && anyRenderer.sharedMaterial != null)
+                    litShader = anyRenderer.sharedMaterial.shader;
+            }
+
+            if (litShader != null)
+            {
+                machineMaterial ??= new Material(litShader) { color = new Color(0.12f, 0.23f, 0.29f), name = "Machine_Runtime" };
+                binMaterial ??= new Material(litShader) { color = new Color(0.12f, 0.15f, 0.18f), name = "Bin_Runtime" };
+                oreMaterial ??= new Material(litShader) { color = new Color(0.48f, 0.24f, 0.12f), name = "Ore_Runtime" };
+                yellowMaterial ??= new Material(litShader) { color = new Color(1f, 0.65f, 0.08f), name = "Yellow_Runtime" };
+                greenMaterial ??= new Material(litShader) { color = new Color(0.2f, 0.9f, 0.4f), name = "Green_Runtime" };
+                redMaterial ??= new Material(litShader) { color = new Color(0.95f, 0.25f, 0.15f), name = "Red_Runtime" };
+            }
+
+            if (ingotPrefab == null)
+            {
+                var existingMachine = FindAnyObjectByType<FactoryMachine>();
+                if (existingMachine != null && existingMachine.ingotPrefab != null)
+                    ingotPrefab = existingMachine.ingotPrefab;
+            }
+
+            if (ghostMaterial == null)
+            {
+                var unlitShader = Shader.Find("Universal Render Pipeline/Unlit")
+                    ?? Shader.Find("Unlit/Color")
+                    ?? litShader;
+
+                if (unlitShader != null)
+                {
+                    ghostMaterial = new Material(unlitShader)
+                    {
+                        name = "BuildGhost_Runtime",
+                        color = new Color(0.2f, 0.85f, 1f, 0.45f)
+                    };
+                    ghostMaterial.SetFloat("_Surface", 1);
+                    ghostMaterial.SetFloat("_Blend", 0);
+                    ghostMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                    ghostMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                    ghostMaterial.SetInt("_ZWrite", 0);
+                    ghostMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+                    ghostMaterial.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                }
+                else if (machineMaterial != null)
+                {
+                    ghostMaterial = new Material(machineMaterial)
+                    {
+                        name = "BuildGhost_Runtime",
+                        color = new Color(0.2f, 0.85f, 1f, 0.45f)
+                    };
+                }
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[BuildController] Could not resolve all materials: {ex.Message}");
         }
     }
 

@@ -50,7 +50,7 @@ MonoBehaviour:
   useAsset: 1
   inputAsset: {fileID: -944628639613478452, guid: f134e6d2ff68a0844b77cc9a0969ed32, type: 3}
   actionMapName: Player
-  lockCursorOnStart: 0
+  lockCursorOnStart: 1
 --- !u!114 &499162637317337013
 MonoBehaviour:
   m_ObjectHideFlags: 0

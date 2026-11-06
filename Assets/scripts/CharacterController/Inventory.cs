@@ -79,18 +79,46 @@ public class Inventory : MonoBehaviour
         RefreshUI();
     }
 
-    /// <summary>Toggles the inventory with InventoryOpen (I), or closes it with Escape.</summary>
+    /// <summary>Toggles the inventory with Tab or I, or closes it with Escape.</summary>
     private void Update()
     {
         var input = InputManager.Instance;
-        if (input == null)
-            return;
 
-        inventoryOpenAction ??= input.GetExtraAction("InventoryOpen", "<Keyboard>/i");
-        if (inventoryOpenAction != null && inventoryOpenAction.WasPressedThisFrame() && (isOpen || input.GameplayEnabled))
-            SetOpen(!isOpen);
-        else if (isOpen && input.UICancelPressed)
+        inventoryOpenAction ??= input?.GetExtraAction("InventoryOpen", "<Keyboard>/tab", "<Keyboard>/i");
+
+        bool togglePressed = (inventoryOpenAction != null && inventoryOpenAction.WasPressedThisFrame())
+            || (Keyboard.current != null && (Keyboard.current.tabKey.wasPressedThisFrame || Keyboard.current.iKey.wasPressedThisFrame));
+
+        bool cancelPressed = (input != null && input.UICancelPressed)
+            || (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame);
+
+        if (togglePressed)
+        {
+            if (isOpen)
+            {
+                SetOpen(false);
+            }
+            else
+            {
+                var craftingTab = FindAnyObjectByType<CraftingTab>(FindObjectsInactive.Include);
+                if (craftingTab != null && craftingTab.IsOpen)
+                    craftingTab.Close();
+
+                var build = GetComponent<BuildController>();
+                if (build != null)
+                {
+                    if (build.IsBuildModeActive)
+                        build.SetBuildModeActive(false);
+                    build.CloseBuildTab();
+                }
+
+                SetOpen(true);
+            }
+        }
+        else if (isOpen && cancelPressed)
+        {
             SetOpen(false);
+        }
     }
 
     /// <summary>Releases UI mode if this component is disabled while its panel is open.</summary>
