@@ -45,6 +45,7 @@ public class FactoryMachine : FactoryInteractable
         : IsProcessing ? $"Smelting {Mathf.Clamp01(elapsed / processingSeconds):P0} | Ore queued: {BufferedOre}"
         : $"Waiting for ore | Ore queued: {BufferedOre}";
 
+    // / <summary>Returns the prompt to show on the UI for this machine.</summary>
     public override string GetPrompt(FactoryPlayer player) => player.OreCount == 0
         ? $"{factoryData?.DisplayName ?? "SMELTER"} - gather {InputItem?.DisplayName ?? "iron ore"} at the resource spot"
         : BufferedOre >= inputCapacity ? "SMELTER - input full"

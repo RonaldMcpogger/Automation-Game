@@ -221,7 +221,7 @@ public class FactoryPlayer : MonoBehaviour
         if (item == null)
             item = CarriedItem ?? DefaultOreResource;
 
-        if (TotalCarriedCount + amount > oreCapacity)
+        if (TotalCarriedCount + amount > oreCapacity) // full capacity
             return false;
 
         if (item == null)
