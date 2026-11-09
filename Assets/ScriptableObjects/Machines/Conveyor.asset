@@ -16,6 +16,9 @@ MonoBehaviour:
   factoryName: Conveyor Belt
   kind: 0
   description: Transports physical item definitions between connected buildings.
+  placementOffset: {x: 0, y: 0, z: 0}
+  placementRotationOffset: {x: 0, y: 0, z: 0}
+  useTwoPointPlacement: 1
   inputItem: {fileID: 0}
   outputItem: {fileID: 0}
   ValidCraftables: []

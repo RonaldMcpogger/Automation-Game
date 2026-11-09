@@ -6,7 +6,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.Splines;
 //using Object = UnityEngine.Object;
 
-using UnityEngine.Splines.ExtrusionShapes; // needed to change spline shape from circle to square for conveyor preview and construction
+using UnityEngine.Splines.ExtrusionShapes; 
 
 // we have a list but we can use type as a category also might remove resource spots as those are to be random generated
 public enum BuildableType
@@ -549,6 +549,52 @@ public class BuildController : MonoBehaviour
         }
     }
 
+    //testing help function to parse factorydata twopoint placement
+    private bool UsesTwoPointPlacement()
+    {
+        return selectedFactoryData != null &&
+               selectedFactoryData.useTwoPointPlacement;
+    }
+
+    private void GetSelectedFactoryPose(
+        Vector3 groundPoint,
+        out Vector3 position,
+        out Quaternion rotation)
+    {
+        rotation = Quaternion.Euler(0f, BuildingRotation, 0f) *
+                   Quaternion.Euler(selectedFactoryData.placementRotationOffset);
+
+        position = groundPoint + rotation * selectedFactoryData.placementOffset;
+    }
+    
+    //selected factory test
+    private GameObject BuildSelectedFactory(Vector3 groundPoint)
+    {
+        if (selectedFactoryData == null ||
+            selectedFactoryData.factoryPrefab == null)
+        {
+            Debug.LogWarning("The selected FactoryData needs a prefab.");
+            return null;
+        }
+
+        GetSelectedFactoryPose(groundPoint, out Vector3 position, out Quaternion rotation);
+
+        GameObject factoryObject = Instantiate(
+            selectedFactoryData.factoryPrefab,
+            position,
+            rotation);
+
+        factoryObject.name = selectedFactoryData.DisplayName;
+
+        FactoryMachine machine = factoryObject.GetComponent<FactoryMachine>();
+        if (machine != null)
+        {
+            machine.factoryData = selectedFactoryData;
+            machine.ApplyFactoryData();
+        }
+
+        return factoryObject;
+    }
     private void HandleWidthInput()
     {
         if (SelectedType != BuildableType.ConveyorBelt)
@@ -611,7 +657,7 @@ public class BuildController : MonoBehaviour
         if (!TryGetPlacementHit(out RaycastHit hit))
             return;
 
-        if (SelectedType == BuildableType.ConveyorBelt)
+        if (SelectedType == BuildableType.ConveyorBelt) // if (UsesTwoPointPlacement()) replace this
         {
             if (!conveyorHasStart)
             {
@@ -660,50 +706,15 @@ public class BuildController : MonoBehaviour
                 }
             }
         }
-        // Crafting tables currently share the Machine category with smelters, but they
-        // are complete interactable prefabs and must not receive smelter setup.
-        else if (IsCraftingTableSelection())
+        else //testing new 
         {
             if (!CanAfford(selectedFactoryData, out _))
                 return;
 
-            // Place the authored Crafting Table prefab unchanged at ground level.
-            // This deliberately bypasses BuildSmelter, which creates smelter-only objects.
-            BuildCraftingTable(hit.point, Quaternion.Euler(0, BuildingRotation, 0));
+            BuildSelectedFactory(hit.point);
             DeductBuildCost(selectedFactoryData);
         }
-        else if (SelectedType == BuildableType.Smelter)
-        {
-            if (!CanAfford(BuildableType.Smelter, out _))
-                return;
 
-            BuildSmelter(hit.point, Quaternion.Euler(0, BuildingRotation, 0));
-            DeductBuildCost(BuildableType.Smelter);
-        }
-        else if (SelectedType == BuildableType.SubmissionBin)
-        {
-            if (!CanAfford(BuildableType.SubmissionBin, out _))
-                return;
-
-            BuildSubmissionBin(hit.point, Quaternion.Euler(0, BuildingRotation, 0));
-            DeductBuildCost(BuildableType.SubmissionBin);
-        }
-        else if (SelectedType == BuildableType.ResourceSpot)
-        {
-            if (!CanAfford(BuildableType.ResourceSpot, out _))
-                return;
-
-            BuildResourceSpot(hit.point, Quaternion.Euler(0, BuildingRotation, 0));
-            DeductBuildCost(BuildableType.ResourceSpot);
-        }
-        else if (SelectedType == BuildableType.Presser)
-        {
-            if (!CanAfford(BuildableType.Presser, out _))
-                return;
-
-            BuildPresser(hit.point, Quaternion.Euler(0, BuildingRotation, 0));
-            DeductBuildCost(BuildableType.Presser);
-        }
     }
 
 

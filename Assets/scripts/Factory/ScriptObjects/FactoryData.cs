@@ -20,14 +20,27 @@ public class FactoryData : ScriptableObject
     public FactoryKind kind = FactoryKind.Machine;
     [TextArea] public string description;
 
+    /// <summary>
+    /// the added code here is test for  making build controller use a single preview and spawn prefab instead of a making a function for each new entry
+    /// </summary>
+
+    [Header("Placement")]
+    [Tooltip("Offset from the placement point to the center of the model.")]
+    public Vector3 placementOffset;
+    [Tooltip("Offset for the rotation of the placed model.")]
+    public Vector3 placementRotationOffset;
+    [Tooltip("Toggle if the factory should use two-point placement (e.g., for conveyors).")]
+    public bool useTwoPointPlacement; // true only for conveyors
+
+
+
+
+
     [Header("Recipe / Item Settings")]
-    //input and output need to change in the future, there will be items in the future that turn into different material once processed,
-    //example: ingot to plate is a different process than turning and ore to ingot or sand to glass if it were impleemnted.
-    // maybe have it use a list of recipes and check which is compatbile or not with a specific machine in the future, using crafting recipe scriptable object
     public Resource inputItem; // what item it needs
     public Resource outputItem; // what it will generate out of the input item
 
-    public List<CraftingRecipe> ValidCraftables;
+    public List<CraftingRecipe> ValidCraftables; // test
     
     
     [Min(1)] public int inputPerCycle = 1;
