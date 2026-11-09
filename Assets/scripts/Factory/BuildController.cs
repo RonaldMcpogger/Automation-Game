@@ -8,14 +8,15 @@ using UnityEngine.Splines;
 
 using UnityEngine.Splines.ExtrusionShapes; // needed to change spline shape from circle to square for conveyor preview and construction
 
-//this needs to change where instead of making enums, it should be a list where it is easy to drag scriptable objects inside
+// we have a list but we can use type as a category also might remove resource spots as those are to be random generated
 public enum BuildableType
 {
     ConveyorBelt = 0,
     Smelter = 1,
     SubmissionBin = 2,
     ResourceSpot = 3,
-    Presser = 4
+    Presser = 4,
+    CraftTable = 5
 }
 
 public class BuildController : MonoBehaviour
@@ -174,6 +175,14 @@ public class BuildController : MonoBehaviour
 
     public void DeductBuildCost(BuildableType type)
     {
+        // Existing callers select by enum; forward them to the data-driven implementation.
+        DeductBuildCost(GetFactoryData(type));
+    }
+
+    public void DeductBuildCost(FactoryData data)
+    {
+        // A selected catalog entry can share a FactoryKind with another prefab.
+        // Taking FactoryData directly ensures the selected entry pays its own cost.
         if (!enforceBuildCosts)
             return;
 
@@ -181,7 +190,6 @@ public class BuildController : MonoBehaviour
         if (inventory == null)
             return;
 
-        FactoryData data = GetFactoryData(type);
         if (data == null || !data.HasBuildCost)
             return;
 
@@ -652,6 +660,18 @@ public class BuildController : MonoBehaviour
                 }
             }
         }
+        // Crafting tables currently share the Machine category with smelters, but they
+        // are complete interactable prefabs and must not receive smelter setup.
+        else if (IsCraftingTableSelection())
+        {
+            if (!CanAfford(selectedFactoryData, out _))
+                return;
+
+            // Place the authored Crafting Table prefab unchanged at ground level.
+            // This deliberately bypasses BuildSmelter, which creates smelter-only objects.
+            BuildCraftingTable(hit.point, Quaternion.Euler(0, BuildingRotation, 0));
+            DeductBuildCost(selectedFactoryData);
+        }
         else if (SelectedType == BuildableType.Smelter)
         {
             if (!CanAfford(BuildableType.Smelter, out _))
@@ -685,6 +705,37 @@ public class BuildController : MonoBehaviour
             DeductBuildCost(BuildableType.Presser);
         }
     }
+
+
+
+
+    /// <summary>
+    /// ////////CRAFTING TABLE PREVIEW AND PLACEMENT////////
+    /// </summary>
+    /// <returns></returns>
+    private bool IsCraftingTableSelection()
+    {
+        // The Crafting Table still uses the Machine category, so identify it from
+        // the interaction component on its assigned prefab.
+        return selectedFactoryData != null
+            && selectedFactoryData.factoryPrefab != null
+            && selectedFactoryData.factoryPrefab.GetComponent<CraftingTable>() != null;
+    }
+
+    private CraftingTable BuildCraftingTable(Vector3 groundPoint, Quaternion rotation) // build the tbale
+    {
+        // The table prefab has its own CraftingTable component and visual elements.
+        // No additional light, sign, or FactoryMachine component is created here.
+        GameObject tableObject = Instantiate(selectedFactoryData.factoryPrefab, groundPoint, rotation);
+        tableObject.name = selectedFactoryData.DisplayName;
+        return tableObject.GetComponent<CraftingTable>();
+    }
+
+
+
+
+
+    //PLACEMENT HIT RAY
 
     public bool TryGetPlacementHit(out RaycastHit hit)
     {
@@ -820,7 +871,7 @@ public class BuildController : MonoBehaviour
         return snap.isSnapped;
     }
 
-    private void UpdatePreview()
+    private void UpdatePreview() //preview view
     {
         if (previewRoot == null)
             CreatePreviewObjects();
@@ -892,8 +943,10 @@ public class BuildController : MonoBehaviour
 
             Quaternion rot = Quaternion.Euler(0, BuildingRotation, 0);
             previewBuildingObj.transform.rotation = rot;
-            //rechange this to use scriptable object type 
-            if (SelectedType == BuildableType.Smelter)
+            if (IsCraftingTableSelection())
+                // Match direct table placement instead of the smelter's raised preview.
+                previewBuildingObj.transform.position = hit.point;
+            else if (SelectedType == BuildableType.Smelter)
                 previewBuildingObj.transform.position = hit.point + Vector3.up * 1.2f;
             else if (SelectedType == BuildableType.SubmissionBin)
                 previewBuildingObj.transform.position = hit.point + Vector3.up * 0.7f;
@@ -909,7 +962,10 @@ public class BuildController : MonoBehaviour
         if (previewBuildingObj == null)
             return;
 
-        if (SelectedType == BuildableType.Smelter)
+        if (IsCraftingTableSelection())
+            // The generic cube preview should resemble the table's low profile.
+            previewBuildingObj.transform.localScale = new Vector3(2f, 1f, 2f);
+        else if (SelectedType == BuildableType.Smelter)
             previewBuildingObj.transform.localScale = new Vector3(2f, 2.4f, 2f);
         else if (SelectedType == BuildableType.SubmissionBin)
             previewBuildingObj.transform.localScale = new Vector3(2.8f, 1.4f, 2.8f);

@@ -1,7 +1,13 @@
+using NUnit.Framework;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-public enum FactoryKind { Conveyor, Machine, SubmissionBin, ResourceSpot, Presser }
+// this could be like a category instead of adding every single factory implemented into factorykind
+// might have to remove resourcespot since those are for randomly generated ores maybe make a drill so that it can transfer ores to smelter
+
+
+public enum FactoryKind { Conveyor, Machine, SubmissionBin, ResourceSpot, Presser, CraftTable }
 
 [CreateAssetMenu(fileName = "newFactoryData", menuName = "Automation Game /Factory Data")]
 public class FactoryData : ScriptableObject
@@ -15,8 +21,15 @@ public class FactoryData : ScriptableObject
     [TextArea] public string description;
 
     [Header("Recipe / Item Settings")]
-    public Resource inputItem;
-    public Resource outputItem;
+    //input and output need to change in the future, there will be items in the future that turn into different material once processed,
+    //example: ingot to plate is a different process than turning and ore to ingot or sand to glass if it were impleemnted.
+    // maybe have it use a list of recipes and check which is compatbile or not with a specific machine in the future, using crafting recipe scriptable object
+    public Resource inputItem; // what item it needs
+    public Resource outputItem; // what it will generate out of the input item
+
+    public List<CraftingRecipe> ValidCraftables;
+    
+    
     [Min(1)] public int inputPerCycle = 1;
     [Min(1)] public int outputPerCycle = 1;
     [Min(1)] public int inputCapacity = 10;
@@ -26,7 +39,15 @@ public class FactoryData : ScriptableObject
     public Sprite icon;
     public string DisplayName => string.IsNullOrWhiteSpace(factoryName) ? name : factoryName;
 
+  
+    
+    
+    
     [Header("Crafting / Build Cost")]
+    [Tooltip("Toggle if builds should be free or require no resources")]
+    public bool freeToBuild = false;
+
+
     [Tooltip("Resource required to build this structure (leave null for default).")]
     public Resource buildCostItem;
     [Tooltip("Number of items required to build (0 = default).")]
@@ -39,7 +60,7 @@ public class FactoryData : ScriptableObject
             if (buildCostItem != null)
                 return buildCostItem;
 
-            switch (kind)
+            switch (kind) // fallback to default cost items if not specified
             {
                 case FactoryKind.Machine:
                     return inputItem ?? Resources.Load<FactoryData>("FactoryData/Smelter")?.inputItem;
@@ -75,13 +96,13 @@ public class FactoryData : ScriptableObject
         }
     }
 
-    public bool HasBuildCost => BuildCostQty > 0 && BuildCostResource != null;
+    public bool HasBuildCost =>!freeToBuild && BuildCostQty > 0 && BuildCostResource != null;
 
     public Resource FallbackCostItem
     {
         get
         {
-            switch (kind)
+            switch (kind) // optional fallback if it is missing
             {
                 case FactoryKind.Machine:
                     return inputItem ?? Resources.Load<FactoryData>("FactoryData/Smelter")?.inputItem;
@@ -112,7 +133,7 @@ public class FactoryData : ScriptableObject
         }
     }
 
-    public string GetCostText()
+    public string GetCostText() // get cpst text
     {
         if (!HasBuildCost)
             return "Free";

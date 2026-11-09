@@ -18,10 +18,12 @@ MonoBehaviour:
   description: Transports physical item definitions between connected buildings.
   inputItem: {fileID: 0}
   outputItem: {fileID: 0}
+  ValidCraftables: []
   inputPerCycle: 1
   outputPerCycle: 1
   inputCapacity: 10
   processingSeconds: 2
   icon: {fileID: 0}
+  freeToBuild: 0
   buildCostItem: {fileID: 11400000, guid: e0110001000000000000000000000001, type: 2}
   buildCostAmount: 1
