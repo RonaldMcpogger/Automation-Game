@@ -13,9 +13,12 @@ MonoBehaviour:
   m_Name: CraftingTable
   m_EditorClassIdentifier: AutomationGame::FactoryData
   factoryPrefab: {fileID: 6292559481565738050, guid: 7dccfe57a20fa954da34c85d198df4f1, type: 3}
-  factoryName: 
+  factoryName: Crafting Table
   kind: 1
-  description: 
+  description: Craft stuff here
+  placementOffset: {x: 0, y: 0, z: 0}
+  placementRotationOffset: {x: 0, y: 0, z: 0}
+  useTwoPointPlacement: 0
   inputItem: {fileID: 0}
   outputItem: {fileID: 0}
   ValidCraftables: []
@@ -24,6 +27,6 @@ MonoBehaviour:
   inputCapacity: 10
   processingSeconds: 2
   icon: {fileID: 0}
-  freeToBuild: 1
+  freeToBuild: 0
   buildCostItem: {fileID: 0}
   buildCostAmount: 0

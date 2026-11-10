@@ -10,12 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6cd79ca07dee05943ab6e8d9713f2388, type: 3}
-  m_Name: Submission Bin
+  m_Name: SubmissionBin
   m_EditorClassIdentifier: Assembly-CSharp::FactoryData
-  factoryPrefab: {fileID: 0}
+  factoryPrefab: {fileID: 4944782670410384835, guid: 63ffcbbe2adb73d449737664376d2969, type: 3}
   factoryName: Submission Bin
   kind: 2
   description: Accepts iron ingots toward the current objective.
+  placementOffset: {x: 0, y: 0, z: 0}
+  placementRotationOffset: {x: 0, y: 0, z: 0}
+  useTwoPointPlacement: 0
   inputItem: {fileID: 11400000, guid: a958f79a8f3568f4d82b7ab04330c143, type: 2}
   outputItem: {fileID: 0}
   ValidCraftables: []

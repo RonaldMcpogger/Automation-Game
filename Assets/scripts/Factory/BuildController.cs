@@ -592,7 +592,7 @@ public class BuildController : MonoBehaviour
             machine.factoryData = selectedFactoryData;
             machine.ApplyFactoryData();
         }
-
+        Debug.Log("Built " + selectedFactoryData.DisplayName + " at " + position);
         return factoryObject;
     }
     private void HandleWidthInput()
@@ -621,7 +621,7 @@ public class BuildController : MonoBehaviour
             conveyorRadius = 0.35f;
     }
 
-    private void HandlePlacement() // placement stuff needs to be revamped due to build tab and not using the build sidebar
+    private void HandlePlacement() 
     {
         bool cancelPressed = false;
         if (buildCancelAction != null && buildCancelAction.WasPressedThisFrame())
@@ -657,7 +657,7 @@ public class BuildController : MonoBehaviour
         if (!TryGetPlacementHit(out RaycastHit hit))
             return;
 
-        if (SelectedType == BuildableType.ConveyorBelt) // if (UsesTwoPointPlacement()) replace this
+        if  (UsesTwoPointPlacement()) //testing the new function
         {
             if (!conveyorHasStart)
             {
@@ -706,13 +706,14 @@ public class BuildController : MonoBehaviour
                 }
             }
         }
-        else //testing new 
+        else //testing new  prefab function
         {
             if (!CanAfford(selectedFactoryData, out _))
                 return;
 
             BuildSelectedFactory(hit.point);
             DeductBuildCost(selectedFactoryData);
+            
         }
 
     }
@@ -720,27 +721,28 @@ public class BuildController : MonoBehaviour
 
 
 
-    /// <summary>
-    /// ////////CRAFTING TABLE PREVIEW AND PLACEMENT////////
-    /// </summary>
-    /// <returns></returns>
-    private bool IsCraftingTableSelection()
-    {
-        // The Crafting Table still uses the Machine category, so identify it from
-        // the interaction component on its assigned prefab.
-        return selectedFactoryData != null
-            && selectedFactoryData.factoryPrefab != null
-            && selectedFactoryData.factoryPrefab.GetComponent<CraftingTable>() != null;
-    }
+    ///// <summary>
+    ///// ////////CRAFTING TABLE PREVIEW AND PLACEMENT////////
+    ///// </summary>
+    ///// <returns></returns>
+    ///// 
+    //private bool IsCraftingTableSelection()
+    //{
+    //    // The Crafting Table still uses the Machine category, so identify it from
+    //    // the interaction component on its assigned prefab.
+    //    return selectedFactoryData != null
+    //        && selectedFactoryData.factoryPrefab != null
+    //        && selectedFactoryData.factoryPrefab.GetComponent<CraftingTable>() != null;
+    //}
 
-    private CraftingTable BuildCraftingTable(Vector3 groundPoint, Quaternion rotation) // build the tbale
-    {
-        // The table prefab has its own CraftingTable component and visual elements.
-        // No additional light, sign, or FactoryMachine component is created here.
-        GameObject tableObject = Instantiate(selectedFactoryData.factoryPrefab, groundPoint, rotation);
-        tableObject.name = selectedFactoryData.DisplayName;
-        return tableObject.GetComponent<CraftingTable>();
-    }
+    //private CraftingTable BuildCraftingTable(Vector3 groundPoint, Quaternion rotation) // build the tbale
+    //{
+    //    // The table prefab has its own CraftingTable component and visual elements.
+    //    // No additional light, sign, or FactoryMachine component is created here.
+    //    GameObject tableObject = Instantiate(selectedFactoryData.factoryPrefab, groundPoint, rotation);
+    //    tableObject.name = selectedFactoryData.DisplayName;
+    //    return tableObject.GetComponent<CraftingTable>();
+    //}
 
 
 
@@ -898,7 +900,7 @@ public class BuildController : MonoBehaviour
 
         previewRoot.SetActive(true);
 
-        if (SelectedType == BuildableType.ConveyorBelt)
+        if (UsesTwoPointPlacement())
         {
             previewBuildingObj.SetActive(false);
 
@@ -952,19 +954,14 @@ public class BuildController : MonoBehaviour
             previewSplineObj.SetActive(false);
             previewBuildingObj.SetActive(true);
 
-            Quaternion rot = Quaternion.Euler(0, BuildingRotation, 0);
-            previewBuildingObj.transform.rotation = rot;
-            if (IsCraftingTableSelection())
-                // Match direct table placement instead of the smelter's raised preview.
-                previewBuildingObj.transform.position = hit.point;
-            else if (SelectedType == BuildableType.Smelter)
-                previewBuildingObj.transform.position = hit.point + Vector3.up * 1.2f;
-            else if (SelectedType == BuildableType.SubmissionBin)
-                previewBuildingObj.transform.position = hit.point + Vector3.up * 0.7f;
-            else if (SelectedType == BuildableType.ResourceSpot)
-                previewBuildingObj.transform.position = hit.point + Vector3.up * 0.55f;
-            else if (SelectedType == BuildableType.Presser)
-                previewBuildingObj.transform.position = hit.point + Vector3.up * 1.2f;
+            //testing helper pose
+
+            GetSelectedFactoryPose( hit.point,out Vector3 previewPosition,out Quaternion previewRotation);
+
+            previewBuildingObj.transform.SetPositionAndRotation(
+                previewPosition,
+                previewRotation);
+
         }
     }
 
@@ -973,10 +970,9 @@ public class BuildController : MonoBehaviour
         if (previewBuildingObj == null)
             return;
 
-        if (IsCraftingTableSelection())
-            // The generic cube preview should resemble the table's low profile.
-            previewBuildingObj.transform.localScale = new Vector3(2f, 1f, 2f);
-        else if (SelectedType == BuildableType.Smelter)
+      
+          
+         if (SelectedType == BuildableType.Smelter)
             previewBuildingObj.transform.localScale = new Vector3(2f, 2.4f, 2f);
         else if (SelectedType == BuildableType.SubmissionBin)
             previewBuildingObj.transform.localScale = new Vector3(2.8f, 1.4f, 2.8f);

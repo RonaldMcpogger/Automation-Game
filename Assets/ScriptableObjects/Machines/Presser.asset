@@ -16,6 +16,9 @@ MonoBehaviour:
   factoryName: Presser
   kind: 4
   description: Presses iron ingots into flat iron plates.
+  placementOffset: {x: 0, y: 0, z: 0}
+  placementRotationOffset: {x: 0, y: 0, z: 0}
+  useTwoPointPlacement: 0
   inputItem: {fileID: 11400000, guid: a958f79a8f3568f4d82b7ab04330c143, type: 2}
   outputItem: {fileID: 11400000, guid: 11531c87ba2203b4ba752e4aa3281860, type: 2}
   ValidCraftables: []

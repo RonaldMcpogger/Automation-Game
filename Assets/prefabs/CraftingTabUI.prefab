@@ -743,7 +743,7 @@ MonoBehaviour:
   - recipe: {fileID: 11400000, guid: ca5052e4ece2bc94484f2e727f2d7a4c, type: 2}
     button: {fileID: 825631160135119259}
     label: {fileID: 4935174884565084489}
-  - recipe: {fileID: 11400000, guid: 703893a18fc443745b5329c753b0d3dd, type: 2}
+  - recipe: {fileID: 11400000, guid: 47d143b40ea30d24ea29ae71b55bc623, type: 2}
     button: {fileID: 8341285992413936922}
     label: {fileID: 1290138775025829714}
   - recipe: {fileID: 11400000, guid: c0110001000000000000000000000001, type: 2}

@@ -12,13 +12,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6cd79ca07dee05943ab6e8d9713f2388, type: 3}
   m_Name: Smelter
   m_EditorClassIdentifier: Assembly-CSharp::FactoryData
-  factoryPrefab: {fileID: 0}
+  factoryPrefab: {fileID: 6014919347908781048, guid: 7f27f3aae0c185d4f8866e0a865bda7a, type: 3}
   factoryName: Smelter
   kind: 1
   description: Refines iron ore into iron ingots.
+  placementOffset: {x: 0, y: 1.2, z: 0}
+  placementRotationOffset: {x: 0, y: 0, z: 0}
+  useTwoPointPlacement: 0
   inputItem: {fileID: 11400000, guid: 9ca77deed8a8cf64d8a9018ed0b77c86, type: 2}
   outputItem: {fileID: 11400000, guid: a958f79a8f3568f4d82b7ab04330c143, type: 2}
-  ValidCraftables: []
+  ValidCraftables:
+  - {fileID: 11400000, guid: ca5052e4ece2bc94484f2e727f2d7a4c, type: 2}
   inputPerCycle: 1
   outputPerCycle: 1
   inputCapacity: 10
