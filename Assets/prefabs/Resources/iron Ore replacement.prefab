@@ -125,7 +125,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: FPSCore::Interactable
   interactable: 1
   interactWhen: 1
-  promptText: 
+  promptText: Iron Ore
   prompts: []
   IsDebugEnabled: 0
 --- !u!54 &1807463832416850824

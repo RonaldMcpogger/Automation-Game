@@ -265,7 +265,7 @@ public class Conveyor : MonoBehaviour
 
         if (applyMomentum && !body.isKinematic)
         {
-            body.linearVelocity = travelDirection.normalized * Mathf.Abs(speed);
+            body.linearVelocity = travelDirection.normalized * Mathf.Abs(speed+1) ;
         }
 
         recentlyReleased[body] = Time.time + Time.fixedDeltaTime * 2f;
