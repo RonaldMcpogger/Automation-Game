@@ -71,14 +71,16 @@ public static class CraftingSetup
         var smelterPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Factories/Smelter.prefab");
         var binPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Submission Bin.prefab");
         var presserPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Factories/Presser.prefab");
+        var drillPrefab = EnsureDrillPrefab();
 
         var conveyorItem = EnsureResource("Conveyor Belt", 100, conveyorPrefab);
         var smelterItem = EnsureResource("Smelter", 20, smelterPrefab);
         var binItem = EnsureResource("Submission Bin", 20, binPrefab);
         var presserItem = EnsureResource("Presser", 20, presserPrefab);
+        var drillItem = EnsureResource("Drill", 20, drillPrefab);
 
         // Update FactoryData costs
-        var conveyorData = Resources.Load<FactoryData>("FactoryData/Conveyor");
+        var conveyorData = LoadFactoryData("Conveyor");
         if (conveyorData != null)
         {
             conveyorData.buildCostItem = conveyorItem;
@@ -86,7 +88,7 @@ public static class CraftingSetup
             EditorUtility.SetDirty(conveyorData);
         }
 
-        var smelterData = Resources.Load<FactoryData>("FactoryData/Smelter");
+        var smelterData = LoadFactoryData("Smelter");
         if (smelterData != null)
         {
             smelterData.buildCostItem = smelterItem;
@@ -94,7 +96,7 @@ public static class CraftingSetup
             EditorUtility.SetDirty(smelterData);
         }
 
-        var binData = Resources.Load<FactoryData>("FactoryData/SubmissionBin");
+        var binData = LoadFactoryData("SubmissionBin");
         if (binData != null)
         {
             binData.buildCostItem = binItem;
@@ -102,12 +104,36 @@ public static class CraftingSetup
             EditorUtility.SetDirty(binData);
         }
 
-        var presserData = Resources.Load<FactoryData>("FactoryData/Presser");
+        var presserData = LoadFactoryData("Presser");
         if (presserData != null)
         {
             presserData.buildCostItem = presserItem;
             presserData.buildCostAmount = 1;
             EditorUtility.SetDirty(presserData);
+        }
+
+        var drillData = LoadFactoryData("Drill");
+        if (drillData == null)
+        {
+            drillData = ScriptableObject.CreateInstance<FactoryData>();
+            drillData.factoryName = "Drill";
+            drillData.kind = FactoryKind.Drill;
+            drillData.description = "Auto-gathers ore from resource spots and outputs to conveyors.";
+            drillData.outputItem = ore;
+            drillData.buildCostItem = drillItem;
+            drillData.buildCostAmount = 1;
+            drillData.processingSeconds = 2.0f;
+            drillData.inputCapacity = 10;
+            drillData.factoryPrefab = drillPrefab;
+            AssetDatabase.CreateAsset(drillData, "Assets/ScriptableObjects/Machines/Drill.asset");
+        }
+        else
+        {
+            drillData.buildCostItem = drillItem;
+            drillData.buildCostAmount = 1;
+            drillData.outputItem = ore;
+            drillData.factoryPrefab = drillPrefab;
+            EditorUtility.SetDirty(drillData);
         }
 
         // Recipes (Option C durations: Ingot/Plate 0s for test compatibility, machines have durations)
@@ -117,8 +143,9 @@ public static class CraftingSetup
         var smelterRecipe = RecipeWithDuration("Craft Smelter", ingot, 4, smelterItem, 1, 2.5f);
         var binRecipe = RecipeWithDuration("Craft Submission Bin", ingot, 3, binItem, 1, 2.0f);
         var presserRecipe = RecipeWithDuration("Craft Presser", ingot, 4, presserItem, 1, 3.0f);
+        var drillRecipe = RecipeWithDuration("Craft Drill", ingot, 4, drillItem, 1, 2.5f);
 
-        var allRecipes = new[] { ingotRecipe, plateRecipe, conveyorRecipe, smelterRecipe, binRecipe, presserRecipe };
+        var allRecipes = new[] { ingotRecipe, plateRecipe, conveyorRecipe, smelterRecipe, binRecipe, presserRecipe, drillRecipe };
 
         // Update CraftingTabUI.prefab
         const string prefabPath = "Assets/prefabs/CraftingTabUI.prefab";
@@ -184,6 +211,37 @@ public static class CraftingSetup
                 PrefabUtility.RecordPrefabInstancePropertyModifications(tabInScene);
             }
             EnsureUIInfrastructureInScene(currentScene);
+
+            var player = Object.FindAnyObjectByType<FactoryPlayer>();
+            if (player != null)
+            {
+                var build = player.GetComponent<BuildController>();
+                if (build != null)
+                {
+                    var tableData = LoadFactoryData("CraftingTable");
+                    build.buildableFactories = new[] { conveyorData, smelterData, binData, presserData, drillData, tableData }
+                        .Where(d => d != null).ToArray();
+                    EditorUtility.SetDirty(build);
+                }
+            }
+
+            var orePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Resources/Iron Ore.prefab");
+            if (orePrefab != null && orePrefab.GetComponent<FactoryItem>() == null)
+            {
+                var item = orePrefab.AddComponent<FactoryItem>();
+                item.itemData = ore;
+                item.material = FactoryItem.MaterialKind.IronOre;
+                EditorUtility.SetDirty(orePrefab);
+            }
+            var oreReplPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Resources/iron Ore replacement.prefab");
+            if (oreReplPrefab != null && oreReplPrefab.GetComponent<FactoryItem>() == null)
+            {
+                var item = oreReplPrefab.AddComponent<FactoryItem>();
+                item.itemData = ore;
+                item.material = FactoryItem.MaterialKind.IronOre;
+                EditorUtility.SetDirty(oreReplPrefab);
+            }
+
             EditorSceneManager.MarkSceneDirty(currentScene);
             EditorSceneManager.SaveScene(currentScene);
         }
@@ -191,6 +249,163 @@ public static class CraftingSetup
         EnsureUIInfrastructureInPlayerPrefab();
         AssetDatabase.SaveAssets();
         Debug.Log("[CraftingSetup] Successfully synchronized all machine items, recipes, and UI prefab entries.");
+    }
+
+    private static FactoryData LoadFactoryData(string name)
+    {
+        return AssetDatabase.LoadAssetAtPath<FactoryData>($"Assets/ScriptableObjects/Machines/{name}.asset")
+            ?? Resources.Load<FactoryData>($"FactoryData/{name}");
+    }
+
+    public static GameObject EnsureDrillPrefab()
+    {
+        string prefabPath = "Assets/prefabs/Factories/Drill.prefab";
+        var existing = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+        if (existing != null)
+            return existing;
+
+        if (!AssetDatabase.IsValidFolder("Assets/prefabs/Factories"))
+            AssetDatabase.CreateFolder("Assets/prefabs", "Factories");
+
+        string conePath = "Assets/FactoryPrototype/Cone.asset";
+        Mesh coneMesh = AssetDatabase.LoadAssetAtPath<Mesh>(conePath);
+        if (coneMesh == null)
+        {
+            coneMesh = CreateConeMesh(0.6f, 0.9f, 16);
+            AssetDatabase.CreateAsset(coneMesh, conePath);
+        }
+
+        var machineMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Machine.mat");
+        var yellowMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Safety Yellow.mat");
+        var greenMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Working.mat");
+        var redMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/FactoryPrototype/Blocked.mat");
+
+        var root = new GameObject("Drill");
+        var drill = root.AddComponent<Drill>();
+        var boxCol = root.AddComponent<BoxCollider>();
+        boxCol.size = new Vector3(2.2f, 2.4f, 2.2f);
+        boxCol.center = new Vector3(0f, 1.2f, 0f);
+
+        // MotorBody (Cube)
+        var body = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        body.name = "MotorBody";
+        body.transform.SetParent(root.transform, false);
+        body.transform.localPosition = new Vector3(0f, 1.4f, 0f);
+        body.transform.localScale = new Vector3(1.8f, 1.2f, 1.8f);
+        if (body.TryGetComponent<Renderer>(out var bodyRend) && machineMat != null)
+            bodyRend.sharedMaterial = machineMat;
+        Object.DestroyImmediate(body.GetComponent<Collider>());
+
+        // DrillBit (Cone pointing down)
+        var bitObj = new GameObject("DrillBit");
+        bitObj.transform.SetParent(root.transform, false);
+        bitObj.transform.localPosition = new Vector3(0f, 0.8f, 0f);
+        bitObj.transform.localRotation = Quaternion.identity;
+        bitObj.transform.localScale = new Vector3(1.2f, 1.0f, 1.2f);
+        var mf = bitObj.AddComponent<MeshFilter>();
+        mf.sharedMesh = coneMesh;
+        var mr = bitObj.AddComponent<MeshRenderer>();
+        if (machineMat != null) mr.sharedMaterial = machineMat;
+
+        // Status Light (Cube)
+        var lamp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        lamp.name = "Status Light";
+        lamp.transform.SetParent(root.transform, false);
+        lamp.transform.localPosition = new Vector3(0f, 1.9f, 0.92f);
+        lamp.transform.localScale = new Vector3(0.5f, 0.15f, 0.08f);
+        Object.DestroyImmediate(lamp.GetComponent<Collider>());
+        if (lamp.TryGetComponent<Renderer>(out var lampRend) && yellowMat != null)
+            lampRend.sharedMaterial = yellowMat;
+
+        // Output Port (Empty Transform)
+        var output = new GameObject("Output");
+        output.transform.SetParent(root.transform, false);
+        output.transform.localPosition = new Vector3(0f, 0.83f, 1.2f);
+
+        // Sign
+        var signObj = new GameObject("DRILL Sign");
+        signObj.transform.SetParent(root.transform, false);
+        signObj.transform.localPosition = new Vector3(0f, 2.5f, 0f);
+        var textMesh = signObj.AddComponent<TextMesh>();
+        textMesh.text = "DRILL\nAuto-mines ore\nPress E to collect";
+        textMesh.fontSize = 24;
+        textMesh.characterSize = 0.08f;
+        textMesh.alignment = TextAlignment.Center;
+        textMesh.anchor = TextAnchor.MiddleCenter;
+        textMesh.color = Color.white;
+
+        drill.drillBit = bitObj.transform;
+        drill.outputPort = output.transform;
+        drill.statusLight = lamp.GetComponent<Renderer>();
+        drill.idleMaterial = yellowMat;
+        drill.workingMaterial = greenMat;
+        drill.blockedMaterial = redMat;
+        drill.processingSeconds = 2.0f;
+        drill.inputCapacity = 10;
+        drill.beltSurfaceHeight = 0.83f;
+
+        var prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
+        Object.DestroyImmediate(root);
+        return prefab;
+    }
+
+    public static Mesh CreateConeMesh(float radius = 0.5f, float height = 0.8f, int segments = 16)
+    {
+        Mesh mesh = new Mesh { name = "Cone" };
+        var vertices = new System.Collections.Generic.List<Vector3>();
+        var normals = new System.Collections.Generic.List<Vector3>();
+        var triangles = new System.Collections.Generic.List<int>();
+
+        Vector3 tip = new Vector3(0, -height, 0);
+        Vector3 baseCenter = Vector3.zero;
+
+        for (int i = 0; i < segments; i++)
+        {
+            float angle1 = (float)i / segments * Mathf.PI * 2f;
+            float angle2 = (float)(i + 1) / segments * Mathf.PI * 2f;
+
+            Vector3 p1 = new Vector3(Mathf.Cos(angle1) * radius, 0, Mathf.Sin(angle1) * radius);
+            Vector3 p2 = new Vector3(Mathf.Cos(angle2) * radius, 0, Mathf.Sin(angle2) * radius);
+
+            int vIndex = vertices.Count;
+            vertices.Add(tip);
+            vertices.Add(p1);
+            vertices.Add(p2);
+
+            Vector3 normal = Vector3.Cross(p2 - tip, p1 - tip).normalized;
+            normals.Add(normal);
+            normals.Add(normal);
+            normals.Add(normal);
+
+            triangles.Add(vIndex);
+            triangles.Add(vIndex + 1);
+            triangles.Add(vIndex + 2);
+        }
+
+        int baseCenterIdx = vertices.Count;
+        vertices.Add(baseCenter);
+        normals.Add(Vector3.up);
+
+        for (int i = 0; i < segments; i++)
+        {
+            float angle = (float)i / segments * Mathf.PI * 2f;
+            vertices.Add(new Vector3(Mathf.Cos(angle) * radius, 0, Mathf.Sin(angle) * radius));
+            normals.Add(Vector3.up);
+        }
+
+        for (int i = 0; i < segments; i++)
+        {
+            int next = (i + 1) % segments;
+            triangles.Add(baseCenterIdx);
+            triangles.Add(baseCenterIdx + 1 + next);
+            triangles.Add(baseCenterIdx + 1 + i);
+        }
+
+        mesh.SetVertices(vertices);
+        mesh.SetNormals(normals);
+        mesh.SetTriangles(triangles, 0);
+        mesh.RecalculateBounds();
+        return mesh;
     }
 
     private static Resource EnsureResource(string name, int maxStack, GameObject model = null)

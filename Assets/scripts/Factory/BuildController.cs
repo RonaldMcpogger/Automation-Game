@@ -16,7 +16,8 @@ public enum BuildableType
     SubmissionBin = 2,
     ResourceSpot = 3,
     Presser = 4,
-    CraftTable = 5
+    CraftTable = 5,
+    Drill = 6
 }
 
 public class BuildController : MonoBehaviour
@@ -408,8 +409,9 @@ public class BuildController : MonoBehaviour
             if (Keyboard.current.digit1Key.wasPressedThisFrame) { SetSelectedType(BuildableType.ConveyorBelt); return; }
             if (Keyboard.current.digit2Key.wasPressedThisFrame) { SetSelectedType(BuildableType.Smelter); return; }
             if (Keyboard.current.digit3Key.wasPressedThisFrame) { SetSelectedType(BuildableType.SubmissionBin); return; }
-            if (Keyboard.current.digit4Key.wasPressedThisFrame) { SetSelectedType(BuildableType.Presser); return; }
+            if (Keyboard.current.digit4Key.wasPressedThisFrame) { SetSelectedType(BuildableType.ResourceSpot); return; }
             if (Keyboard.current.digit5Key.wasPressedThisFrame) { SetSelectedType(BuildableType.Presser); return; }
+            if (Keyboard.current.digit6Key.wasPressedThisFrame) { SetSelectedType(BuildableType.Drill); return; }
         }
 
         float scroll = 0f;
@@ -526,6 +528,8 @@ public class BuildController : MonoBehaviour
                     return definition;
         if (type == BuildableType.ResourceSpot)
             return Resources.Load<FactoryData>("FactoryData/IronOreSpot");
+        if (type == BuildableType.Drill)
+            return Resources.Load<FactoryData>("FactoryData/Drill");
         return null;
     }
 
@@ -573,6 +577,18 @@ public class BuildController : MonoBehaviour
         if (selectedFactoryData == null ||
             selectedFactoryData.factoryPrefab == null)
         {
+            Quaternion rot = Quaternion.Euler(0f, BuildingRotation, 0f);
+            if (SelectedType == BuildableType.Smelter)
+                return BuildSmelter(groundPoint, rot).gameObject;
+            if (SelectedType == BuildableType.SubmissionBin)
+                return BuildSubmissionBin(groundPoint, rot).gameObject;
+            if (SelectedType == BuildableType.ResourceSpot)
+                return BuildResourceSpot(groundPoint, rot).gameObject;
+            if (SelectedType == BuildableType.Presser)
+                return BuildPresser(groundPoint, rot).gameObject;
+            if (SelectedType == BuildableType.Drill)
+                return BuildDrill(groundPoint, rot).gameObject;
+
             Debug.LogWarning("The selected FactoryData needs a prefab.");
             return null;
         }
@@ -591,6 +607,20 @@ public class BuildController : MonoBehaviour
         {
             machine.factoryData = selectedFactoryData;
             machine.ApplyFactoryData();
+            if (machine is Drill drill)
+                drill.InitReferences();
+
+            Transform outPort = (machine is Drill d) ? d.outputPort : ((machine is Presser p) ? p.outputPort : null);
+            Vector3 outputPos = outPort != null ? outPort.position : position + (rotation * Vector3.forward) * 1.8f;
+            foreach (var conveyor in FindObjectsByType<Conveyor>())
+            {
+                if (!conveyor.HasInputConnection && Vector3.Distance(conveyor.StartPosition, outputPos) < 2.5f)
+                {
+                    machine.outputBelt = conveyor;
+                    conveyor.inputMachine = machine;
+                    break;
+                }
+            }
         }
         Debug.Log("Built " + selectedFactoryData.DisplayName + " at " + position);
         return factoryObject;
@@ -796,13 +826,15 @@ public class BuildController : MonoBehaviour
 
         if (forStart)
         {
-            // 1. Smelter output port (in front of smelter)
+            // 1. Machine output port (Drill, Presser, Smelter)
             foreach (var machine in FindObjectsByType<FactoryMachine>())
             {
-                Vector3 outputPort = (machine is Presser pm && pm.outputPort != null)
+                Vector3 outputPort = (machine is Drill dr && dr.outputPort != null)
+                    ? dr.outputPort.position
+                    : (machine is Presser pm && pm.outputPort != null)
                     ? pm.outputPort.position
                     : machine.transform.position + machine.transform.forward * 1.8f;
-                if (!(machine is Presser pm2 && pm2.outputPort != null))
+                if (!(machine is Presser pm2 && pm2.outputPort != null) && !(machine is Drill dr2 && dr2.outputPort != null))
                     outputPort.y = machine.transform.position.y - 1.2f + conveyorHeightOffset;
                 float dist = Vector3.Distance(hitPoint, outputPort);
                 float centerDist = Vector3.Distance(hitPoint, machine.transform.position);
@@ -812,7 +844,8 @@ public class BuildController : MonoBehaviour
                 {
                     bestDist = Mathf.Min(dist, centerDist);
                     snap.position = outputPort;
-                    snap.targetName = machine is Presser ? "Presser Output" : "Smelter Output";
+                    snap.targetName = machine is Drill ? "Drill Output"
+                        : machine is Presser ? "Presser Output" : "Smelter Output";
                     snap.machine = machine;
                     snap.isSnapped = true;
                 }
@@ -840,12 +873,26 @@ public class BuildController : MonoBehaviour
         }
         else // forEnd
         {
-            // 1. Submission Bin intake
+            // 1. Receiver intake (Submission Bin, Presser, Smelter/Machine)
             foreach (var bin in FindObjectsByType<ConveyorReceiver>())
             {
-                Vector3 intake = (bin is PresserReceiver pr && pr.presser != null && pr.presser.inputPort != null)
-                    ? pr.presser.inputPort.position
-                    : bin.transform.position + Vector3.up * 1.0f;
+                Vector3 intake = bin.transform.position + Vector3.up * 1.0f;
+                string targetName = "Receiver Intake";
+                if (bin is PresserReceiver pr && pr.presser != null && pr.presser.inputPort != null)
+                {
+                    intake = pr.presser.inputPort.position;
+                    targetName = "Presser Input";
+                }
+                else if (bin is MachineReceiver mr && mr.machine != null)
+                {
+                    intake = mr.transform.position;
+                    targetName = $"{mr.machine.factoryData?.DisplayName ?? "Smelter"} Input";
+                }
+                else if (bin is SubmissionBin)
+                {
+                    targetName = "Submission Bin";
+                }
+
                 float dist = Vector3.Distance(hitPoint, intake);
                 float centerDist = Vector3.Distance(hitPoint, bin.transform.position);
 
@@ -854,7 +901,7 @@ public class BuildController : MonoBehaviour
                 {
                     bestDist = Mathf.Min(dist, centerDist);
                     snap.position = intake;
-                    snap.targetName = bin is PresserReceiver ? "Presser Input" : "Submission Bin";
+                    snap.targetName = targetName;
                     snap.receiver = bin;
                     snap.isSnapped = true;
                 }
@@ -980,6 +1027,8 @@ public class BuildController : MonoBehaviour
             previewBuildingObj.transform.localScale = new Vector3(2f, 1.1f, 2f);
         else if (SelectedType == BuildableType.Presser)
             previewBuildingObj.transform.localScale = new Vector3(2f, 2.4f, 2f);
+        else if (SelectedType == BuildableType.Drill)
+            previewBuildingObj.transform.localScale = new Vector3(2f, 2.2f, 2f);
     }
 
     private void UpdateUI()
@@ -1247,6 +1296,29 @@ public class BuildController : MonoBehaviour
             }
         }
 
+        // Auto-connect to conveyor ending near input
+        Transform inputTransform = smelterObj.transform.Find("Input");
+        Vector3 inputPos = inputTransform != null ? inputTransform.position : center - (rotation * Vector3.forward) * 1.8f;
+        var receiver = (inputTransform != null ? inputTransform.gameObject : smelterObj).GetComponent<MachineReceiver>();
+        if (receiver == null)
+        {
+            receiver = (inputTransform != null ? inputTransform.gameObject : smelterObj).AddComponent<MachineReceiver>();
+            receiver.machine = machine;
+        }
+        foreach (var conveyor in FindObjectsByType<Conveyor>())
+        {
+            if (!conveyor.HasOutputConnection && conveyor.ConveyerSpline != null && conveyor.ConveyerSpline.Spline != null)
+            {
+                Vector3 endPos = conveyor.ConveyerSpline.EvaluatePosition(1f);
+                if (Vector3.Distance(endPos, inputPos) < 2.5f)
+                {
+                    conveyor.outputReceiver = receiver;
+                    receiver.inputConveyor = conveyor;
+                    break;
+                }
+            }
+        }
+
         return machine;
     }
 
@@ -1390,6 +1462,56 @@ public class BuildController : MonoBehaviour
         }
 
         return presser;
+    }
+
+    public Drill BuildDrill(Vector3 groundPoint, Quaternion rotation)
+    {
+        FactoryData data = GetFactoryData(BuildableType.Drill);
+        var drillObj = data != null && data.factoryPrefab != null
+            ? Instantiate(data.factoryPrefab)
+            : GameObject.CreatePrimitive(PrimitiveType.Cube);
+        drillObj.name = data?.DisplayName ?? "Drill";
+        drillObj.transform.position = groundPoint;
+        drillObj.transform.rotation = rotation;
+
+        var drill = drillObj.GetComponent<Drill>() ?? drillObj.AddComponent<Drill>();
+        drill.factoryData = data;
+        drill.idleMaterial = yellowMaterial;
+        drill.workingMaterial = greenMaterial;
+        drill.blockedMaterial = redMaterial;
+        drill.processingSeconds = data != null ? data.processingSeconds : 2.0f;
+        drill.inputCapacity = data != null ? data.inputCapacity : 10;
+        drill.InitReferences();
+
+        if (drill.statusLight == null)
+        {
+            var lamp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            lamp.name = "Status Light";
+            lamp.transform.SetParent(drillObj.transform, false);
+            lamp.transform.localPosition = new Vector3(0f, 2.1f, 0.9f);
+            lamp.transform.localScale = new Vector3(0.5f, 0.15f, 0.08f);
+            Destroy(lamp.GetComponent<Collider>());
+            drill.statusLight = lamp.GetComponent<Renderer>();
+            lamp.GetComponent<Renderer>().sharedMaterial = yellowMaterial;
+        }
+
+        CreateSign("DRILL\nAuto-mines ore\nPress E to collect", groundPoint + Vector3.up * 2.8f, drillObj.transform, Color.white);
+
+        // Auto-connect to conveyor starting in front of output port
+        Vector3 outputPos = drill.outputPort != null
+            ? drill.outputPort.position
+            : groundPoint + (rotation * Vector3.forward) * 1.8f;
+        foreach (var conveyor in FindObjectsByType<Conveyor>())
+        {
+            if (!conveyor.HasInputConnection && Vector3.Distance(conveyor.StartPosition, outputPos) < 2.5f)
+            {
+                drill.outputBelt = conveyor;
+                conveyor.inputMachine = drill;
+                break;
+            }
+        }
+
+        return drill;
     }
 
     /// <summary>

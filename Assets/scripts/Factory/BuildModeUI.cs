@@ -29,7 +29,8 @@ public class BuildModeUI : MonoBehaviour
         "[2] Smelter",
         "[3] Submission Bin",
         "[4] Resource Spot",
-        "[5] Presser"
+        "[5] Presser",
+        "[6] Drill"
     };
 
     /// <summary>Uses the build catalog for the slot labels without requiring the UI to know recipes.</summary>
@@ -166,7 +167,7 @@ public class BuildModeUI : MonoBehaviour
         subheaderText.fontSize = 12;
         subheaderText.alignment = TextAnchor.MiddleCenter;
         subheaderText.color = new Color(0.65f, 0.7f, 0.75f);
-        subheaderText.text = "Select item or press [1-5]";
+        subheaderText.text = "Select item or press [1-6]";
         subheaderText.raycastTarget = false;
 
         // Vertical Slots Container

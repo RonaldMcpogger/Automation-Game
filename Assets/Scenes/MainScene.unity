@@ -6754,10 +6754,11 @@ MonoBehaviour:
   ingotPrefab: {fileID: 1569788509712831468, guid: a50145ba71b0d8042a31506e4068a281, type: 3}
   buildableFactories:
   - {fileID: 11400000, guid: 7e906352ad4c4061a7d320ed8c7a4712, type: 2}
-  - {fileID: 11400000, guid: 4e6ad9cd0cac29e4a95ec4774b8ed093, type: 2}
-  - {fileID: 11400000, guid: 2bd7ff2c57fd4f4d99f11bd3a5c70c81, type: 2}
   - {fileID: 11400000, guid: 93af2da589a84f6f9cd49c2a7d723bb1, type: 2}
   - {fileID: 11400000, guid: b5eb8d1b64e342d7abb7a7ac47d0c101, type: 2}
+  - {fileID: 11400000, guid: 2bd7ff2c57fd4f4d99f11bd3a5c70c81, type: 2}
+  - {fileID: 11400000, guid: d0110005000000000000000000000005, type: 2}
+  - {fileID: 11400000, guid: 4e6ad9cd0cac29e4a95ec4774b8ed093, type: 2}
   sidebarOnRight: 0
   buildTabCatalog: {fileID: 1864282687}
   enforceBuildCosts: 1

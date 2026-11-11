@@ -7,7 +7,7 @@ using UnityEngine.Serialization;
 // might have to remove resourcespot since those are for randomly generated ores maybe make a drill so that it can transfer ores to smelter
 
 
-public enum FactoryKind { Conveyor, Machine, SubmissionBin, ResourceSpot, Presser, CraftTable }
+public enum FactoryKind { Conveyor, Machine, SubmissionBin, ResourceSpot, Presser, CraftTable, Drill }
 
 [CreateAssetMenu(fileName = "newFactoryData", menuName = "Automation Game /Factory Data")]
 public class FactoryData : ScriptableObject
@@ -83,6 +83,8 @@ public class FactoryData : ScriptableObject
                     return Resources.Load<FactoryData>("FactoryData/Smelter")?.inputItem;
                 case FactoryKind.Presser:
                     return inputItem ?? Resources.Load<FactoryData>("FactoryData/Presser")?.inputItem;
+                case FactoryKind.Drill:
+                    return Resources.Load<FactoryData>("FactoryData/Smelter")?.outputItem;
                 default:
                     return null;
             }
@@ -104,6 +106,7 @@ public class FactoryData : ScriptableObject
                 case FactoryKind.SubmissionBin: return 3;
                 case FactoryKind.Conveyor: return 1;
                 case FactoryKind.Presser: return 4;
+                case FactoryKind.Drill: return 4;
                 default: return 0;
             }
         }
@@ -125,6 +128,8 @@ public class FactoryData : ScriptableObject
                     return Resources.Load<FactoryData>("FactoryData/Smelter")?.inputItem;
                 case FactoryKind.Presser:
                     return inputItem ?? Resources.Load<FactoryData>("FactoryData/Presser")?.inputItem;
+                case FactoryKind.Drill:
+                    return Resources.Load<FactoryData>("FactoryData/Smelter")?.outputItem;
                 default:
                     return null;
             }
@@ -141,6 +146,7 @@ public class FactoryData : ScriptableObject
                 case FactoryKind.SubmissionBin: return 3;
                 case FactoryKind.Conveyor: return 1;
                 case FactoryKind.Presser: return 4;
+                case FactoryKind.Drill: return 4;
                 default: return 0;
             }
         }

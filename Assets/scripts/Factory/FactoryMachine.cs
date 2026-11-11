@@ -25,6 +25,20 @@ public class FactoryMachine : FactoryInteractable
     protected virtual void Awake()
     {
         ApplyFactoryData();
+        EnsureReceiver();
+    }
+
+    public void EnsureReceiver()
+    {
+        if (InputItem == null)
+            return;
+        Transform inputPort = transform.Find("Input");
+        GameObject target = inputPort != null ? inputPort.gameObject : gameObject;
+        if (target.GetComponent<ConveyorReceiver>() == null)
+        {
+            var mr = target.AddComponent<MachineReceiver>();
+            mr.machine = this;
+        }
     }
 
     public virtual void ApplyFactoryData()
@@ -35,8 +49,8 @@ public class FactoryMachine : FactoryInteractable
         processingSeconds = factoryData.processingSeconds;
     }
 
-    public Resource InputItem => factoryData != null ? factoryData.inputItem : null;
-    public Resource OutputItem => factoryData != null ? factoryData.outputItem : null;
+    public virtual Resource InputItem => factoryData != null ? factoryData.inputItem : null;
+    public virtual Resource OutputItem => factoryData != null ? factoryData.outputItem : null;
     public virtual FactoryItem OutputPrefab => OutputItem != null && OutputItem.objModel != null
         ? OutputItem.objModel.GetComponent<FactoryItem>() : ingotPrefab;
 
@@ -60,6 +74,25 @@ public class FactoryMachine : FactoryInteractable
         int loaded = player.TakeItem(InputItem, Mathf.Max(0, inputCapacity - BufferedOre));
         BufferedOre += loaded;
         return loaded;
+    }
+
+    public virtual bool TryReceive(Rigidbody body)
+    {
+        if (!isActiveAndEnabled || body == null)
+            return false;
+        if (BufferedOre >= inputCapacity)
+            return false;
+
+        if (body.TryGetComponent<FactoryItem>(out var item))
+        {
+            if (InputItem != null && !item.Matches(InputItem))
+                return false;
+        }
+
+        BufferedOre++;
+        body.gameObject.SetActive(false);
+        Destroy(body.gameObject);
+        return true;
     }
 
     protected virtual void Update()
@@ -106,5 +139,26 @@ public class FactoryMachine : FactoryInteractable
         if (statusLight != null)
             statusLight.sharedMaterial = OutputReady ? blockedMaterial
                 : IsProcessing ? workingMaterial : idleMaterial;
+    }
+}
+
+/// <summary>Allows any FactoryMachine to receive inputs from conveyor belts.</summary>
+public class MachineReceiver : ConveyorReceiver
+{
+    public FactoryMachine machine;
+
+    private void Awake()
+    {
+        if (machine == null)
+            machine = GetComponentInParent<FactoryMachine>();
+    }
+
+    public override bool TryReceive(Rigidbody body)
+    {
+        if (!isActiveAndEnabled || body == null)
+            return false;
+        if (machine == null)
+            machine = GetComponentInParent<FactoryMachine>();
+        return machine != null && machine.TryReceive(body);
     }
 }

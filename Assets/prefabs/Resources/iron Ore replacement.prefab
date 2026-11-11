@@ -84,6 +84,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 691f536ccc904d54f8576870dbbc3220, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2399588929245237044}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 691f536ccc904d54f8576870dbbc3220, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -1703160248326121165}
   m_SourcePrefab: {fileID: 100100000, guid: 691f536ccc904d54f8576870dbbc3220, type: 3}
 --- !u!1 &6363383619190445285 stripped
 GameObject:
@@ -182,3 +185,17 @@ MonoBehaviour:
   keepClearOfCamera: 1
   cameraClearance: 0.05
   lockToView: 0
+--- !u!114 &-1703160248326121165
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6363383619190445285}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67aafb535481fdc4bbc12fb846590ee7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomationGame::FactoryItem
+  itemData: {fileID: 11400000, guid: 9ca77deed8a8cf64d8a9018ed0b77c86, type: 2}
+  material: 0

@@ -161,7 +161,7 @@ public class Presser : FactoryMachine, IHeldTargetReceiver
         return true;
     }
 
-    public bool TryReceive(Rigidbody body)
+    public override bool TryReceive(Rigidbody body)
     {
         if (!isActiveAndEnabled || body == null)
             return false;

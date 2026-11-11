@@ -15,6 +15,7 @@ GameObject:
   - component: {fileID: 4511050129231129817}
   - component: {fileID: 6895685015950040705}
   - component: {fileID: 6852546881440933835}
+  - component: {fileID: -5086182433575226629}
   m_Layer: 0
   m_Name: Iron Ore
   m_TagString: Untagged
@@ -186,3 +187,17 @@ MonoBehaviour:
   keepClearOfCamera: 0
   cameraClearance: 0.05
   lockToView: 0
+--- !u!114 &-5086182433575226629
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8911500159534234869}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67aafb535481fdc4bbc12fb846590ee7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomationGame::FactoryItem
+  itemData: {fileID: 11400000, guid: 9ca77deed8a8cf64d8a9018ed0b77c86, type: 2}
+  material: 0
