@@ -27,6 +27,6 @@ MonoBehaviour:
   inputCapacity: 10
   processingSeconds: 1.5
   icon: {fileID: 0}
-  freeToBuild: 0
+  freeToBuild: 1
   buildCostItem: {fileID: 11400000, guid: e0110004000000000000000000000004, type: 2}
   buildCostAmount: 1

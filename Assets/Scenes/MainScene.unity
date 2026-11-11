@@ -6731,10 +6731,15 @@ MonoBehaviour:
   viewCamera: {fileID: 0}
   playerTransform: {fileID: 0}
   maxBuildDistance: 30
-  conveyorHeightOffset: 1
+  conveyorHeightOffset: 1.16
   minConveyorLength: 1
   maxBuildingSlope: 20
-  conveyorRadius: 0.3
+  blockPlacementMask:
+    serializedVersion: 2
+    m_Bits: 64
+  placementProbeRadius: 0.1
+  conveyorConnectionClearance: 0.75
+  conveyorRadius: 0.45
   conveyorSides: 4
   conveyorSegmentsPerUnit: 4
   enableConveyorCurves: 1
