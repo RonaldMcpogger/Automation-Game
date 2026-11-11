@@ -43,6 +43,11 @@ public class BuildController : MonoBehaviour
     [Tooltip("Buildings stay upright. Steep terrain needs foundations in a later milestone.")]
     [Range(0f, 45f)] public float maxBuildingSlope = 20f;
 
+    [SerializeField] private LayerMask blockPlacementMask;
+    [Min(0.01f)] public float placementProbeRadius = 0.1f;
+    [Min(0.05f)] public float conveyorConnectionClearance = 0.75f;
+
+
     [Header("Conveyor Settings")]
     [Tooltip("Radius / thickness of the extruded conveyor belt (default 0.5m; previously 0.83m).")]
     [Range(0.2f, 1.2f)] public float conveyorRadius = 0.5f;
@@ -115,6 +120,7 @@ public class BuildController : MonoBehaviour
     private SplineContainer previewSplineContainer;
     private Mesh previewSplineMesh;
     private GameObject previewBuildingObj;
+    private readonly Collider[] placementOverlapResults = new Collider[32];
     [SerializeField]
     private BuildTabCatalog buildTabCatalog;
     private FactoryData selectedFactoryData;
@@ -289,6 +295,9 @@ public class BuildController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Input Actions
+    /// </summary>
     private void RegisterInputActions()
     {
         EnsureInputActions();
@@ -307,44 +316,6 @@ public class BuildController : MonoBehaviour
         buildWidthAction ??= im.GetExtraAction("BuildWidth", "<Keyboard>/t", "<Gamepad>/leftShoulder");
         buildScrollAction ??= im.GetExtraVector2Action("BuildScroll", "<Mouse>/scroll");
     }
-
-    public void CloseBuildTab()
-    {
-        if (buildTabCatalog != null && buildTabCatalog.IsVisible)
-        {
-            InputManager.Instance?.ExitUIMode(this);
-            buildTabCatalog.SetVisible(false);
-        }
-    }
-
-    private void Update()
-    {
-        EnsureInputActions();
-
-        bool bPressed = (buildModeAction != null && buildModeAction.WasPressedThisFrame())
-            || (Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame);
-
-        // A workbench or inventory owns the cursor until its panel is closed.
-        // If another UI menu owns the cursor, only allow input if the user explicitly presses B to open build menu.
-        bool otherMenuOpen = InputManager.Instance != null && !InputManager.Instance.GameplayEnabled
-            && !IsBuildModeActive && (buildTabCatalog == null || !buildTabCatalog.IsVisible);
-
-        if (otherMenuOpen && !bPressed)
-            return;
-
-        HandleToggleInput(bPressed);
-
-        if (!IsBuildModeActive)
-            return;
-
-        HandleSelectionInput();
-        HandleRotationInput();
-        HandleWidthInput();
-        HandlePlacement();
-        UpdatePreview();
-        UpdateUI();
-    }
-
     private void HandleToggleInput(bool togglePressed)
     {
         bool cancelPressed = (InputManager.Instance != null && InputManager.Instance.UICancelPressed)
@@ -394,7 +365,6 @@ public class BuildController : MonoBehaviour
             }
         }
     }
-
     private void HandleSelectionInput()
     {
         int hotbar = IInput.HotbarPressedIndex;
@@ -433,6 +403,48 @@ public class BuildController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Build Tab Functions
+    /// </summary>
+    public void CloseBuildTab()
+    {
+        if (buildTabCatalog != null && buildTabCatalog.IsVisible)
+        {
+            InputManager.Instance?.ExitUIMode(this);
+            buildTabCatalog.SetVisible(false);
+        }
+    }
+
+    private void Update()
+    {
+        EnsureInputActions();
+
+        bool bPressed = (buildModeAction != null && buildModeAction.WasPressedThisFrame())
+            || (Keyboard.current != null && Keyboard.current.bKey.wasPressedThisFrame);
+
+        // A workbench or inventory owns the cursor until its panel is closed.
+        // If another UI menu owns the cursor, only allow input if the user explicitly presses B to open build menu.
+        bool otherMenuOpen = InputManager.Instance != null && !InputManager.Instance.GameplayEnabled
+            && !IsBuildModeActive && (buildTabCatalog == null || !buildTabCatalog.IsVisible);
+
+        if (otherMenuOpen && !bPressed)
+            return;
+
+        HandleToggleInput(bPressed);
+
+        if (!IsBuildModeActive)
+            return;
+
+        HandleSelectionInput();
+        HandleRotationInput();
+        HandleWidthInput();
+        HandlePlacement();
+        UpdatePreview();
+        UpdateUI();
+    }
+
+
+   
     public void SetSelectedType(BuildableType type)
     {
         if (SelectedType == type && selectedFactoryData != null && selectedFactoryData.kind == (FactoryKind)type)
@@ -475,6 +487,9 @@ public class BuildController : MonoBehaviour
         SelectCatalogIndex(catalogIndex);
     }
 
+    /// <summary>
+    /// Building function
+    /// </summary>
     private void BeginBuild() // begin build mode from the build tab, this is where the build mode is activated and the cursor is locked
     {
         if (selectedFactoryData == null)
@@ -571,7 +586,82 @@ public class BuildController : MonoBehaviour
         position = groundPoint + rotation * selectedFactoryData.placementOffset;
     }
     
-    //selected factory test
+  
+    private bool IsFactoryAreaBlocked(FactoryData data, Vector3 position, Quaternion rotation)
+    {
+        if (data == null || data.factoryPrefab == null || blockPlacementMask.value == 0)
+            return false;
+
+        Transform prefabRoot = data.factoryPrefab.transform;
+        BoxCollider[] boundaries = data.factoryPrefab.GetComponentsInChildren<BoxCollider>(true);
+        bool foundBoundary = false;
+
+        foreach (BoxCollider boundary in boundaries)
+        {
+            if (!boundary.isTrigger || !IsInPlacementBlockMask(boundary.gameObject.layer))
+                continue;
+
+            foundBoundary = true;
+            Vector3 localCenter = prefabRoot.InverseTransformPoint(
+                boundary.transform.TransformPoint(boundary.center));
+            Vector3 center = position + rotation * Vector3.Scale(localCenter, prefabRoot.localScale);
+            Vector3 halfExtents = Vector3.Scale(boundary.size * 0.5f, boundary.transform.lossyScale);
+            Quaternion boundaryRotation = rotation *
+                Quaternion.Inverse(prefabRoot.rotation) * boundary.transform.rotation;
+
+            if (OverlapsPlacementBlocker(center, halfExtents, boundaryRotation))
+                return true;
+        }
+
+        // A prefab without a BoundaryTrigger retains the small point check until it is configured.
+        return !foundBoundary && Physics.CheckSphere(position, placementProbeRadius,
+            blockPlacementMask, QueryTriggerInteraction.Collide);
+    }
+
+    private bool IsConveyorPathBlocked(Vector3 start, Vector3 end, SnapTarget startSnap, SnapTarget endSnap)
+    {
+        if (blockPlacementMask.value == 0)
+            return false;
+
+        var candidateSpline = new Spline();
+        ConfigureConveyorSpline(candidateSpline, start, end, startSnap, endSnap, conveyorStartDirection);
+
+        float straightDistance = Vector3.Distance(start, end);
+        int segments = Mathf.Clamp(Mathf.CeilToInt(straightDistance / 0.25f), 2, 128);
+        float endpointPadding = Mathf.Clamp(conveyorConnectionClearance / Mathf.Max(straightDistance, 0.01f), 0f, 0.45f);
+        float from = startSnap.isSnapped ? endpointPadding : 0f;
+        float to = endSnap.isSnapped ? 1f - endpointPadding : 1f;
+        if (to <= from)
+            return false;
+
+        Vector3 previous = candidateSpline.EvaluatePosition(from);
+        float radius = Mathf.Max(0.05f, conveyorRadius * 0.8f);
+
+        for (int i = 1; i <= segments; i++)
+        {
+            float t = Mathf.Lerp(from, to, i / (float)segments);
+            Vector3 current = candidateSpline.EvaluatePosition(t);
+            if (Physics.CheckCapsule(previous, current, radius, blockPlacementMask,
+                QueryTriggerInteraction.Collide))
+                return true;
+
+            previous = current;
+        }
+
+        return false;
+    }
+
+    private bool OverlapsPlacementBlocker(Vector3 center, Vector3 halfExtents, Quaternion rotation)
+    {
+        return Physics.OverlapBoxNonAlloc(center, halfExtents, placementOverlapResults, rotation,
+            blockPlacementMask, QueryTriggerInteraction.Collide) > 0;
+    }
+
+    private bool IsInPlacementBlockMask(int layer) =>
+        (blockPlacementMask.value & (1 << layer)) != 0;
+
+
+
     private GameObject BuildSelectedFactory(Vector3 groundPoint)
     {
         if (selectedFactoryData == null ||
@@ -695,7 +785,9 @@ public class BuildController : MonoBehaviour
                     return;
 
                 bool snapped = TryGetSnapTarget(true, hit.point, out SnapTarget snap);
-                conveyorStartPoint = snapped ? snap.position : hit.point + Vector3.up * conveyorHeightOffset;
+                // Keep a free start marker on the ray hit so it stays under the crosshair.
+                conveyorStartPoint = snapped ? snap.position : hit.point + Vector3.up * conveyorRadius;
+;
                 activeStartMachine = snapped ? snap.machine : null;
                 conveyorStartSnap = snapped ? snap : default;
                 conveyorStartDirection = GetConveyorDirection(conveyorStartSnap);
@@ -707,7 +799,9 @@ public class BuildController : MonoBehaviour
                     return;
 
                 bool snapped = TryGetSnapTarget(false, hit.point, out SnapTarget snap);
-                Vector3 endPoint = snapped ? snap.position : hit.point + Vector3.up * conveyorHeightOffset;
+                // Free endpoints use the same ground hit as the preview marker.
+                Vector3 endPoint = snapped ? snap.position : hit.point + Vector3.up * conveyorRadius;
+;
 
                 // Level height if close to flat and not snapped
                 if (!snapped && Mathf.Abs(conveyorStartPoint.y - endPoint.y) < 0.25f)
@@ -717,6 +811,14 @@ public class BuildController : MonoBehaviour
                 // Keep the first point active, but require the player to move the endpoint slightly left or right.
                 if (IsEndpointBehindStart(conveyorStartPoint, endPoint, conveyorStartDirection))
                     return;
+
+                // Reject paths that cross machine BoundaryTrigger volumes.
+                if (IsConveyorPathBlocked(conveyorStartPoint, endPoint, conveyorStartSnap,
+                    snapped ? snap : default))
+                {
+                    Debug.Log("Conveyor path is blocked.");
+                    return;
+                }
 
                 if (Vector3.Distance(conveyorStartPoint, endPoint) >= minConveyorLength)
                 {
@@ -740,6 +842,14 @@ public class BuildController : MonoBehaviour
         {
             if (!CanAfford(selectedFactoryData, out _))
                 return;
+
+            // Check the factory prefab's BoundaryTrigger at its final rotated placement pose.
+            GetSelectedFactoryPose(hit.point, out Vector3 position, out Quaternion rotation);
+            if (IsFactoryAreaBlocked(selectedFactoryData, position, rotation))
+            {
+                Debug.Log("Machine footprint is blocked.");
+                return;
+            }
 
             BuildSelectedFactory(hit.point);
             DeductBuildCost(selectedFactoryData);
@@ -788,12 +898,14 @@ public class BuildController : MonoBehaviour
             return false;
         }
 
-        Ray ray; // the ray is used to check if the area is valid to place the building or conveyor belt
-        if (InputManager.Instance != null && !InputManager.Instance.CursorLocked && Mouse.current != null)
-            ray = viewCamera.ScreenPointToRay(Mouse.current.position.ReadValue());//shoot ray and get value
-        
-        else
-            ray = viewCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        // Use the center of the rendered camera viewport, which is where its reticle is drawn.
+        Rect cameraRect = viewCamera.pixelRect;
+        // Use this camera's viewport center so the ray follows its rendered reticle position.
+        Vector3 screenCenter = new Vector3(
+            cameraRect.x + cameraRect.width * 0.5f,
+            cameraRect.y + cameraRect.height * 0.5f,
+            0f);
+        Ray ray = viewCamera.ScreenPointToRay(screenCenter);
 
         int layerMask = ~LayerMask.GetMask("Ignore Raycast");
         if (Physics.Raycast(ray, out hit, maxBuildDistance, layerMask, QueryTriggerInteraction.Ignore))
@@ -954,7 +1066,7 @@ public class BuildController : MonoBehaviour
             if (!conveyorHasStart)
             {
                 bool snapped = TryGetSnapTarget(true, hit.point, out currentSnap);
-                Vector3 pos = snapped ? currentSnap.position : hit.point + Vector3.up * conveyorHeightOffset;
+                Vector3 pos = snapped ? currentSnap.position : hit.point + Vector3.up * conveyorRadius;
 
                 previewStartMarker.SetActive(true);
                 previewStartMarker.transform.position = pos;
@@ -970,7 +1082,8 @@ public class BuildController : MonoBehaviour
                 previewStartMarker.transform.localScale = new Vector3(conveyorRadius * 2f, 0.15f, conveyorRadius * 2f);
 
                 bool snapped = TryGetSnapTarget(false, hit.point, out currentSnap);
-                Vector3 endPoint = snapped ? currentSnap.position : hit.point + Vector3.up * conveyorHeightOffset;
+                Vector3 endPoint = snapped ? currentSnap.position : hit.point + Vector3.up * conveyorRadius;
+;
 
                 if (!snapped && Mathf.Abs(conveyorStartPoint.y - endPoint.y) < 0.25f)
                     endPoint.y = conveyorStartPoint.y;
