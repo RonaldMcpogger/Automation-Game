@@ -6734,7 +6734,7 @@ MonoBehaviour:
   conveyorHeightOffset: 1
   minConveyorLength: 1
   maxBuildingSlope: 20
-  conveyorRadius: 0.5
+  conveyorRadius: 0.3
   conveyorSides: 4
   conveyorSegmentsPerUnit: 4
   enableConveyorCurves: 1

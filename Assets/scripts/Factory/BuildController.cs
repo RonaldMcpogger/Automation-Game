@@ -749,7 +749,7 @@ public class BuildController : MonoBehaviour
 
 
     //PLACEMENT HIT RAY
-
+    /// this is a function that uses raycast and check if the area is valid to place the building or conveyor belt
     public bool TryGetPlacementHit(out RaycastHit hit)
     {
         if (viewCamera == null)
@@ -758,9 +758,10 @@ public class BuildController : MonoBehaviour
             return false;
         }
 
-        Ray ray;
+        Ray ray; // the ray is used to check if the area is valid to place the building or conveyor belt
         if (InputManager.Instance != null && !InputManager.Instance.CursorLocked && Mouse.current != null)
-            ray = viewCamera.ScreenPointToRay(Mouse.current.position.ReadValue());
+            ray = viewCamera.ScreenPointToRay(Mouse.current.position.ReadValue());//shoot ray and get value
+        
         else
             ray = viewCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
 
@@ -770,8 +771,7 @@ public class BuildController : MonoBehaviour
             if (playerTransform != null && hit.collider.transform.IsChildOf(playerTransform))
                 return false;
 
-            if (SelectedType != BuildableType.ConveyorBelt
-                && Vector3.Angle(Vector3.up, hit.normal) > maxBuildingSlope)
+            if ( Vector3.Angle(Vector3.up, hit.normal) > maxBuildingSlope)
                 return false;
 
             return true;
