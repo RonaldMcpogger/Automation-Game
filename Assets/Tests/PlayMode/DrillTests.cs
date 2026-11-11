@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -59,6 +60,31 @@ public class DrillTests
         Assert.That(player.GetItemCount(drill.OutputItem), Is.EqualTo(initialPlayerOre + buffered),
             "Player should have collected all buffered ore from drill.");
         Assert.That(drill.BufferedOre, Is.Zero, "Drill buffer should be empty after collection.");
+    }
+
+    [UnityTest]
+    public IEnumerator DrillSendsCopperFromItsDepositToAConveyor()
+    {
+        var map = Object.FindAnyObjectByType<TerrainMapGenerator>();
+        var copper = map.GeneratedResources.GetComponentsInChildren<ResourceSpot>()
+            .First(spot => spot.ResourceName == "Copper Ore");
+        Vector3 position = copper.transform.position + Vector3.right * 2.5f;
+        var drill = buildController.BuildDrill(position, Quaternion.identity);
+        Assert.That(drill.targetSpot, Is.SameAs(copper));
+        Assert.That(drill.OutputItem, Is.SameAs(copper.resourceData));
+
+        var belt = buildController.BuildConveyorBelt(drill.outputPort.position,
+            drill.outputPort.position + Vector3.forward * 5f);
+        drill.outputBelt = belt;
+        belt.inputMachine = drill;
+        drill.processingSeconds = 0.05f;
+        float deadline = Time.realtimeSinceStartup + 2f;
+        while (belt.ItemCount == 0 && Time.realtimeSinceStartup < deadline)
+            yield return null;
+
+        Assert.That(belt.ItemCount, Is.GreaterThan(0));
+        Assert.That(Object.FindObjectsByType<FactoryItem>().Any(item => item.itemData == copper.resourceData), Is.True,
+            "The drill must emit a physical copper ore item.");
     }
 
     [UnityTest]

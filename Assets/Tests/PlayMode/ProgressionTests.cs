@@ -13,6 +13,8 @@ public class ProgressionTests
     private FactoryMachine machine;
     private SubmissionBin bin;
     private Conveyor belt;
+    private FactoryData paidSmelter;
+    private FactoryData paidPresser;
 
     [UnitySetUp]
     public IEnumerator SetUp()
@@ -25,6 +27,17 @@ public class ProgressionTests
 
         buildController = player.GetComponent<BuildController>();
         Assert.That(buildController, Is.Not.Null, "BuildController should be present.");
+
+        // Exercise paid progression with test-local definitions while MainScene is in free-build mode.
+        var definitions = buildController.buildableFactories;
+        int smelterIndex = System.Array.FindIndex(definitions, data => data.kind == FactoryKind.Machine);
+        int presserIndex = System.Array.FindIndex(definitions, data => data.kind == FactoryKind.Presser);
+        paidSmelter = Object.Instantiate(definitions[smelterIndex]);
+        paidSmelter.freeToBuild = false;
+        definitions[smelterIndex] = paidSmelter;
+        paidPresser = Object.Instantiate(definitions[presserIndex]);
+        paidPresser.freeToBuild = false;
+        definitions[presserIndex] = paidPresser;
 
         // Enable First Factory demo for testing stations
         var demo = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include).Single(x => x.name == "First Factory");
@@ -41,6 +54,13 @@ public class ProgressionTests
         belt.speed = 100f;
     }
 
+    [TearDown]
+    public void DestroyTestDefinitions()
+    {
+        if (paidSmelter != null) Object.Destroy(paidSmelter);
+        if (paidPresser != null) Object.Destroy(paidPresser);
+    }
+
     [UnityTest]
     public IEnumerator SmelterBuildCostDeduction()
     {
@@ -49,7 +69,7 @@ public class ProgressionTests
         // Cannot afford smelter initially
         bool canAfford = buildController.CanAfford(BuildableType.Smelter, out string reason);
         Assert.That(canAfford, Is.False, "Player should not afford Smelter with 0 ore.");
-        Assert.That(reason, Does.Contain("Requires"));
+        Assert.That(reason, Does.Contain("Craft at Table"));
 
         // Gather 5 ore from spot
         spot.gatherInterval = 0.01f;
@@ -159,10 +179,16 @@ public class ProgressionTests
             yield return new WaitForSeconds(0.02f);
         }
 
+        var tab = Object.FindAnyObjectByType<CraftingTab>();
+        Assert.That(player.TryCollect(tab.entries[0].recipe.outputItem, 2), Is.True);
+        Assert.That(player.TryCollect(tab.entries[1].recipe.outputItem), Is.True);
+
         // Wait a frame for UI update
         yield return null;
 
         Assert.That(player.resourceBarText.text, Does.Contain("ORE: 3"));
+        Assert.That(player.resourceBarText.text, Does.Contain("INGOTS: 2"));
+        Assert.That(player.resourceBarText.text, Does.Contain("PLATES: 1"));
     }
     [UnityTest]
     public IEnumerator CraftMachineAndPlaceFromInventory()
@@ -206,6 +232,9 @@ public class ProgressionTests
 
         // Craft the Smelter
         tab.CraftSelected();
+        Assert.That(tab.IsCrafting, Is.True);
+        tab.CraftSelected();
+        Assert.That(tab.IsOpen && tab.IsCrafting, Is.True, "An extra craft request should leave the timer running.");
         float timeout = Time.time + smelterRecipe.craftDuration + 3f;
         while (tab.IsCrafting && Time.time < timeout)
             yield return null;

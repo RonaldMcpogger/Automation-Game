@@ -5,7 +5,7 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "Map Settings", menuName = "Automation Game/Map Settings")]
 public class MapGenerationSettings : ScriptableObject
 {
-    public const int GeneratorVersion = 2;
+    public const int GeneratorVersion = 3;
 
     [Header("Map")]
     public int seed = 104729;

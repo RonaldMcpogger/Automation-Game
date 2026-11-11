@@ -34,6 +34,8 @@ public class UIAndHotkeyTests
     {
         var es = Object.FindAnyObjectByType<EventSystem>(FindObjectsInactive.Include);
         Assert.That(es, Is.Not.Null, "An EventSystem must exist in the scene.");
+        Assert.That(Object.FindObjectsByType<EventSystem>().Length, Is.EqualTo(1),
+            "The UI bootstrap must reuse the scene EventSystem.");
 
         var uiModule = es.GetComponent<InputSystemUIInputModule>();
         Assert.That(uiModule, Is.Not.Null, "EventSystem must have an InputSystemUIInputModule.");

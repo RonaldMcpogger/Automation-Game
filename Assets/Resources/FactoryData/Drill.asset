@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6cd79ca07dee05943ab6e8d9713f2388, type: 3}
   m_Name: Drill
   m_EditorClassIdentifier: Assembly-CSharp::FactoryData
-  factoryPrefab: {fileID: 0}
+  factoryPrefab: {fileID: 4039369816461724893, guid: 73c370dfe11d9934abf7c26f9ed0336a, type: 3}
   factoryName: Drill
   kind: 6
   description: Auto-gathers ore from resource spots and outputs to conveyors.

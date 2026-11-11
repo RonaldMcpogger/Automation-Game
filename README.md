@@ -112,10 +112,12 @@ than 20 degrees. Conveyor endpoints still support snapping to machine sides.
 
 ## Generated resource deposits
 
-The map requests **48 iron-ore deposits**, including a guaranteed starter deposit
-at X=-42, Z=12 near the original player spawn. Walk to a dark angular rock cluster
-with orange mineral pieces, look at a rock, and hold **E** to gather ore for the
-smelter. These are working `ResourceSpot` instances, not loose item pickups.
+The map requests **48 mixed deposits**, including a guaranteed starter iron deposit
+at X=-42, Z=12. Look at a rock and hold **E** to gather its ore. Iron has orange
+mineral pieces, copper has green ones, and tin has taller silver-blue pieces.
+Each ore has its own inventory entry and loose-item prefab. A drill placed near a
+deposit can collect that ore or feed it onto a conveyor. Existing smelting and
+crafting recipes still use the iron production chain.
 
 Other deposits stay outside the protected clearing/transition, at least 65 metres
 apart and 24 metres inside the map edge. Placement checks slope (up to 16 degrees),
@@ -125,8 +127,10 @@ terrain-accessibility check, not a NavMesh or a generated road system.
 
 Placement attempts are bounded. If custom settings cannot fit the requested
 count, the generator reports the actual count instead of stacking deposits or
-looping indefinitely. Change the settings to adjust density. There is currently
-one natural resource type, iron ore; ingots and plates remain processed products.
+looping indefinitely. Change the settings to adjust density. The deposit weights
+on **Generated Factory Map** control the mix outside the clearing. The default
+weights are three parts iron, two parts copper, and one part tin. Ore assignments
+repeat with the seed and are independent of the random sequence used for locations.
 
 To change the map:
 

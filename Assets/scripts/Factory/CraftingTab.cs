@@ -71,7 +71,7 @@ public class CraftingTab : MonoBehaviour
         resultMessage = string.Empty;
         isCrafting = false;
         craftTimer = 0f;
-        SelectedRecipe = entries != null && entries.Length > 0 ? entries[0].recipe : null;
+        SelectedRecipe = entries != null && entries.Length > 0 ? entries[0]?.recipe : null;
         SetVisible(true);
         InputManager.Instance?.EnterUIMode(this);
         Refresh();
@@ -132,7 +132,7 @@ public class CraftingTab : MonoBehaviour
 
     public void Select(int index)
     {
-        if (entries == null || index < 0 || index >= entries.Length) return;
+        if (entries == null || index < 0 || index >= entries.Length || entries[index] == null) return;
         if (isCrafting) CancelCraft();
         SelectedRecipe = entries[index].recipe;
         resultMessage = string.Empty;
@@ -141,7 +141,8 @@ public class CraftingTab : MonoBehaviour
 
     public void CraftSelected()
     {
-        if (!IsOpen || isCrafting || player == null || ActiveTable == null || !ActiveTable.isActiveAndEnabled
+        if (isCrafting) return;
+        if (!IsOpen || player == null || ActiveTable == null || !ActiveTable.isActiveAndEnabled
             || !WithinReach(ActiveTable, player) || inventory == null) { Close(); return; }
 
         if (!inventory.CanCraft(SelectedRecipe, out string reason))

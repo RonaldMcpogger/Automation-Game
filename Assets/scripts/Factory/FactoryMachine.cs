@@ -83,11 +83,9 @@ public class FactoryMachine : FactoryInteractable
         if (BufferedOre >= inputCapacity)
             return false;
 
-        if (body.TryGetComponent<FactoryItem>(out var item))
-        {
-            if (InputItem != null && !item.Matches(InputItem))
-                return false;
-        }
+        if (!body.TryGetComponent<FactoryItem>(out var item)
+            || (InputItem != null && !item.Matches(InputItem)))
+            return false;
 
         BufferedOre++;
         body.gameObject.SetActive(false);

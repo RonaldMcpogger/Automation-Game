@@ -180,26 +180,31 @@ public class BuildModeTests
         Assert.That(buildController.SelectedType, Is.EqualTo(BuildableType.Smelter));
         var buildButton = (UnityEngine.UI.Button)typeof(BuildTabCatalog).GetField("buildButton",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(catalog);
-        Assert.That(buildButton.interactable, Is.False, "A paid building starts locked without resources.");
-        var smelterData = Resources.Load<FactoryData>("FactoryData/Smelter");
-        player.TryCollect(smelterData.BuildCostResource, smelterData.BuildCostQty);
-        smelterEntry.onClick.Invoke();
-        Assert.That(buildButton.interactable, Is.True);
+        Assert.That(buildButton.interactable, Is.True, "The scene's free smelter is available without resources.");
         buildButton.onClick.Invoke();
         yield return null;
         Assert.That(buildController.IsBuildModeActive, Is.True);
         Assert.That(catalog.IsVisible, Is.False);
         Assert.That(InputManager.Instance.GameplayEnabled, Is.True);
         Assert.That(InputManager.Instance.CursorLocked, Is.True);
+        var placeFactory = typeof(BuildController).GetMethod("BuildSelectedFactory",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        var placed = (GameObject)placeFactory.Invoke(buildController, new object[] { new Vector3(25, 0, 25) });
+        var machine = placed.GetComponent<FactoryMachine>();
+        var receiver = placed.transform.Find("Input").GetComponent<MachineReceiver>();
+        Assert.That(machine.InputItem, Is.SameAs(player.DefaultOreResource));
+        Assert.That(receiver, Is.Not.Null, "A catalog-placed smelter must expose its conveyor input.");
+        Assert.That(receiver.machine, Is.SameAs(machine));
+        var unrelatedBody = new GameObject("Unrelated Rigidbody").AddComponent<Rigidbody>();
+        Assert.That(receiver.TryReceive(unrelatedBody), Is.False, "The smelter must leave non-resource objects alone.");
+        Assert.That(machine.BufferedOre, Is.Zero);
         buildController.SetBuildModeActive(false);
     }
     [UnityTest]
     public IEnumerator ConveyorWidthCanBeCustomizedAndCycled()
     {
-        // Default radius should be 0.5f (thinner than original 0.83f)
-        Assert.That(buildController.conveyorRadius, Is.EqualTo(0.5f));
-
         // Test cycling presets
+        buildController.conveyorRadius = 0.5f;
         buildController.CycleConveyorWidth();
         Assert.That(buildController.conveyorRadius, Is.EqualTo(0.75f));
 

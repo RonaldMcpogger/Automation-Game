@@ -14,8 +14,7 @@ public static class UIBootstrap
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void BeforeSceneLoad()
     {
-        EnsureEventSystem();
-        EnsureGraphicRaycasters();
+        SceneManager.sceneLoaded -= OnSceneLoaded;
         SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
@@ -34,24 +33,18 @@ public static class UIBootstrap
 
     public static void EnsureEventSystem()
     {
-        EventSystem es = Object.FindAnyObjectByType<EventSystem>(FindObjectsInactive.Include);
+        EventSystem es = EventSystem.current;
         if (es == null)
         {
-            var go = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
+            var go = new GameObject("EventSystem", typeof(EventSystem));
             es = go.GetComponent<EventSystem>();
-            var module = go.GetComponent<InputSystemUIInputModule>();
+        }
+
+        var module = es.GetComponent<InputSystemUIInputModule>();
+        if (module == null)
+            module = es.gameObject.AddComponent<InputSystemUIInputModule>();
+        if (module.actionsAsset == null)
             module.AssignDefaultActions();
-            Object.DontDestroyOnLoad(go);
-        }
-        else
-        {
-            var module = es.GetComponent<InputSystemUIInputModule>();
-            if (module == null)
-            {
-                module = es.gameObject.AddComponent<InputSystemUIInputModule>();
-                module.AssignDefaultActions();
-            }
-        }
     }
 
     public static void EnsureGraphicRaycasters()

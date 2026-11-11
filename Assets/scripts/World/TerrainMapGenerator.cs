@@ -6,13 +6,24 @@ using UnityEngine;
 [RequireComponent(typeof(Terrain), typeof(TerrainCollider))]
 public class TerrainMapGenerator : MonoBehaviour
 {
+    [Serializable]
+    public struct DepositVariant
+    {
+        public ResourceSpot prefab;
+        [Range(1, 100)] public int weight;
+    }
+
     public MapGenerationSettings settings;
     [Tooltip("Grass first, rock second. Both are authored project assets.")]
     public TerrainLayer[] surfaceLayers;
     public Material terrainMaterial;
     public bool generateOnAwake;
     [Header("Generated Resource Spots")]
+    [Tooltip("This deposit always appears in the starter clearing.")]
     public ResourceSpot resourceSpotPrefab;
+    [Range(1, 100)] public int defaultDepositWeight = 3;
+    [Tooltip("Alternative deposits and their relative shares outside the starter clearing.")]
+    public DepositVariant[] additionalDeposits;
     [SerializeField] private Transform generatedResources;
     [SerializeField] private int generatedSeed;
     private TerrainData runtimeData;
@@ -67,8 +78,7 @@ public class TerrainMapGenerator : MonoBehaviour
     {
         if (settings == null || data == null)
             throw new InvalidOperationException("Assign map settings and a destination TerrainData.");
-        if (settings.resourceSpotCount > 0 && resourceSpotPrefab == null)
-            throw new InvalidOperationException("Assign a resource spot prefab before generating this map.");
+        ValidateDepositPrefabs();
         // Validate before touching the previous map, so invalid settings leave it intact.
         float[,] heights = MapHeightGenerator.Generate(settings);
         data.heightmapResolution = settings.HeightmapResolution;
@@ -106,12 +116,88 @@ public class TerrainMapGenerator : MonoBehaviour
         ScatterResources(data);
     }
 
+    /// <summary>Refreshes deposits using the existing baked terrain and its seed.</summary>
+    public void RegenerateResourceSpots()
+    {
+        var data = Terrain.terrainData;
+        if (settings == null || data == null || generatedSeed != settings.seed
+            || transform.position != settings.Origin
+            || data.size != new Vector3(settings.mapSize.x, settings.verticalSize, settings.mapSize.y))
+            throw new InvalidOperationException("Regenerate the terrain before refreshing deposits for these map settings.");
+
+        ValidateDepositPrefabs();
+        ScatterResources(data);
+    }
+
+    private void ValidateDepositPrefabs()
+    {
+        if (settings.resourceSpotCount == 0)
+            return;
+        if (resourceSpotPrefab == null)
+            throw new InvalidOperationException("Assign a resource spot prefab before generating this map.");
+        if (additionalDeposits == null || additionalDeposits.Length == 0)
+            return;
+        if (defaultDepositWeight < 1 || defaultDepositWeight > 100)
+            throw new InvalidOperationException("Use a deposit weight between 1 and 100.");
+
+        foreach (var variant in additionalDeposits)
+            if (variant.prefab == null || variant.prefab.resourceData == null || variant.weight < 1 || variant.weight > 100)
+                throw new InvalidOperationException("Each deposit variant needs a prefab with a resource and a weight between 1 and 100.");
+    }
+
+    private ResourceSpot[] ChooseDepositPrefabs(int count)
+    {
+        var chosen = new ResourceSpot[count];
+        if (count == 0)
+            return chosen;
+
+        chosen[0] = resourceSpotPrefab;
+        int variantCount = additionalDeposits?.Length ?? 0;
+        if (variantCount == 0)
+        {
+            Array.Fill(chosen, resourceSpotPrefab);
+            return chosen;
+        }
+
+        var weights = new int[variantCount + 1];
+        weights[0] = defaultDepositWeight;
+        int totalWeight = defaultDepositWeight;
+        for (int i = 0; i < variantCount; i++)
+        {
+            weights[i + 1] = additionalDeposits[i].weight;
+            totalWeight += additionalDeposits[i].weight;
+        }
+
+        // Allocate in proportion to the weights, then shuffle assignments across suitable sites.
+        var credits = new int[weights.Length];
+        for (int slot = 1; slot < count; slot++)
+        {
+            int best = 0;
+            for (int i = 0; i < weights.Length; i++)
+            {
+                credits[i] += weights[i];
+                if (credits[i] > credits[best])
+                    best = i;
+            }
+            credits[best] -= totalWeight;
+            chosen[slot] = best == 0 ? resourceSpotPrefab : additionalDeposits[best - 1].prefab;
+        }
+
+        // Keep assignment independent of the random stream that places the rocks.
+        var random = new System.Random(unchecked(settings.seed ^ 0x4e1dc36a));
+        for (int i = count - 1; i > 1; i--)
+        {
+            int other = random.Next(1, i + 1);
+            (chosen[i], chosen[other]) = (chosen[other], chosen[i]);
+        }
+        return chosen;
+    }
+
     private void ScatterResources(TerrainData data)
     {
         // Only replace this generator's own group; player buildings and the demo are untouched.
-        if (resourceSpotPrefab == null && settings.resourceSpotCount > 0)
-            throw new InvalidOperationException("Assign a resource spot prefab before generating this map.");
         var placements = MapResourcePlanner.Generate(settings, data);
+        var prefabs = ChooseDepositPrefabs(placements.Count);
         if (generatedResources != null)
         {
             generatedResources.gameObject.SetActive(false);
@@ -130,14 +216,14 @@ public class TerrainMapGenerator : MonoBehaviour
             ResourceSpot spot;
 #if UNITY_EDITOR
             if (!Application.isPlaying)
-                spot = ((GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(resourceSpotPrefab.gameObject,
+                spot = ((GameObject)UnityEditor.PrefabUtility.InstantiatePrefab(prefabs[i].gameObject,
                     generatedResources)).GetComponent<ResourceSpot>();
             else
 #endif
-                spot = Instantiate(resourceSpotPrefab, generatedResources);
+                spot = Instantiate(prefabs[i], generatedResources);
             spot.transform.SetPositionAndRotation(placement.position, Quaternion.Euler(0, placement.yaw, 0));
             spot.transform.localScale = Vector3.one * placement.scale;
-            spot.name = i == 0 ? "Starter Iron Ore" : "Iron Ore Deposit";
+            spot.name = i == 0 ? $"Starter {spot.ResourceName}" : $"{spot.ResourceName} Deposit";
             // Seat each base rock on the terrain; the mineral pieces stay attached to the central rock.
             foreach (Transform part in spot.transform)
             {

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -26,6 +27,35 @@ public class GeneratedResourceTests
     }
 
     [UnityTest]
+    public IEnumerator CopperAndTinGatherAsSeparateResources()
+    {
+        yield return SceneManager.LoadSceneAsync("MainScene");
+        yield return null;
+
+        var map = Object.FindAnyObjectByType<TerrainMapGenerator>();
+        var deposits = map.GeneratedResources.GetComponentsInChildren<ResourceSpot>();
+        var player = Object.FindAnyObjectByType<FactoryPlayer>();
+        var copper = deposits.First(spot => spot.ResourceName == "Copper Ore");
+        var tin = deposits.First(spot => spot.ResourceName == "Tin Ore");
+        Assert.That(deposits.Count(spot => spot.resourceData == copper.resourceData),
+            Is.GreaterThan(deposits.Count(spot => spot.resourceData == tin.resourceData)));
+
+        foreach (var spot in new[] { copper, tin })
+        {
+            spot.Interact(player);
+            Assert.That(Inventory.Instance.GetItemCount(spot.resourceData), Is.EqualTo(1));
+            var looseOre = spot.resourceData.objModel.GetComponent<FactoryItem>();
+            Assert.That(looseOre.itemData, Is.SameAs(spot.resourceData));
+            Assert.That(looseOre.GetComponent<Rigidbody>(), Is.Not.Null);
+        }
+
+        var builder = player.GetComponent<BuildController>();
+        var smelter = builder.BuildSmelter(new Vector3(25, 0, 25), Quaternion.identity);
+        Assert.That(smelter.LoadFrom(player), Is.Zero, "The iron recipe should only consume iron ore.");
+        Assert.That(Inventory.Instance.TotalCount, Is.EqualTo(2));
+    }
+
+    [UnityTest]
     public IEnumerator RepeatedRegenerationReplacesOnlyGeneratedResources()
     {
         yield return SceneManager.LoadSceneAsync("MainScene");
@@ -33,12 +63,12 @@ public class GeneratedResourceTests
         var map = Object.FindAnyObjectByType<TerrainMapGenerator>();
         var builder = Object.FindAnyObjectByType<BuildController>();
         var placedSpot = builder.BuildResourceSpot(Vector3.zero, Quaternion.identity);
-        Vector3 firstPosition = map.GeneratedResources.GetChild(0).position;
+        var savedLayout = ReadLayout();
         int seed = map.settings.seed;
         map.RegenerateRuntime();
         yield return null;
         Assert.That(map.GeneratedResources.childCount, Is.EqualTo(map.settings.resourceSpotCount));
-        Assert.That(map.GeneratedResources.GetChild(0).position, Is.EqualTo(firstPosition));
+        Assert.That(ReadLayout(), Is.EqualTo(savedLayout), "The seed must reproduce both deposit locations and ore types.");
         Assert.That(placedSpot, Is.Not.Null);
         Assert.That(placedSpot.gameObject.activeInHierarchy, Is.True);
         map.RegenerateRuntime(true);
@@ -47,5 +77,8 @@ public class GeneratedResourceTests
         Assert.That(map.GeneratedSeed, Is.Not.EqualTo(seed));
         Assert.That(map.transform.Find("Map Bounds").childCount, Is.EqualTo(4));
         Assert.That(map.GeneratedResources.childCount, Is.EqualTo(map.settings.resourceSpotCount));
+
+        (Vector3 position, Resource ore)[] ReadLayout() => map.GeneratedResources.Cast<Transform>()
+            .Select(deposit => (deposit.position, deposit.GetComponent<ResourceSpot>().resourceData)).ToArray();
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -13,6 +14,30 @@ public static class TerrainMapEditor
     private const string ScenePath = "Assets/Scenes/MainScene.unity";
     private const string Folder = "Assets/World";
     private const string DataPath = Folder + "/Generated Terrain.asset";
+
+    [MenuItem("Tools/Factory Map/Add Copper and Tin Deposits")]
+    public static void AddCopperAndTinDeposits()
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+            return;
+        if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            return;
+
+        var scene = EditorSceneManager.OpenScene(ScenePath);
+        var map = Object.FindAnyObjectByType<TerrainMapGenerator>();
+        if (map == null)
+            throw new InvalidOperationException("Set up MainScene's terrain before adding deposit variants.");
+
+        Undo.RegisterFullObjectHierarchyUndo(map.gameObject, "Add copper and tin deposits");
+        ConfigureDepositVariants(map, CreateOreSpotPrefab());
+        map.RegenerateResourceSpots();
+        EditorUtility.SetDirty(map);
+        EditorSceneManager.MarkSceneDirty(scene);
+        if (!EditorSceneManager.SaveScene(scene))
+            throw new InvalidOperationException("MainScene could not be saved.");
+        AssetDatabase.SaveAssets();
+        Debug.Log($"Saved {map.GeneratedResources.childCount} mixed deposits for seed {map.GeneratedSeed}.");
+    }
 
     [MenuItem("Tools/Factory Map/Upgrade to Large Landscape")]
     public static void UpgradeLargeLandscape()
@@ -81,6 +106,7 @@ public static class TerrainMapEditor
             AssetDatabase.CreateAsset(map.terrainMaterial, Folder + "/Terrain.mat");
         }
         map.resourceSpotPrefab = CreateOreSpotPrefab();
+        ConfigureDepositVariants(map, map.resourceSpotPrefab);
         map.GenerateInto(data);
         // Preserve the old floor for comparison without double surfaces or colliders.
         var oldFloor = GameObject.Find("Land");
@@ -97,6 +123,113 @@ public static class TerrainMapEditor
         Selection.activeGameObject = map.gameObject;
         Debug.Log($"Factory map saved: seed {settings.seed}, {settings.mapSize.x} x {settings.mapSize.y}m, "
             + $"generator v{MapGenerationSettings.GeneratorVersion}. Factory clearing stays at Y=0.");
+    }
+
+    private static void ConfigureDepositVariants(TerrainMapGenerator map, ResourceSpot ironDeposit)
+    {
+        if (map.resourceSpotPrefab == null)
+            map.resourceSpotPrefab = ironDeposit;
+        var variants = new List<TerrainMapGenerator.DepositVariant>(
+            map.additionalDeposits ?? Array.Empty<TerrainMapGenerator.DepositVariant>());
+        Add("Copper", new Color(0.18f, 0.68f, 0.48f), new Vector3(1.25f, 0.85f, 1.25f), 2);
+        Add("Tin", new Color(0.58f, 0.70f, 0.83f), new Vector3(0.82f, 1.35f, 0.82f), 1);
+        map.additionalDeposits = variants.ToArray();
+
+        void Add(string metal, Color color, Vector3 crystalScale, int weight)
+        {
+            var prefab = CreateDepositVariant(ironDeposit, metal, color, crystalScale);
+            if (!variants.Exists(variant => variant.prefab == prefab))
+                variants.Add(new TerrainMapGenerator.DepositVariant { prefab = prefab, weight = weight });
+        }
+    }
+
+    private static ResourceSpot CreateDepositVariant(ResourceSpot ironDeposit, string metal, Color color, Vector3 crystalScale)
+    {
+        string oreName = metal + " Ore";
+        string path = $"{Folder}/{oreName} Deposit.prefab";
+        var existing = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        if (existing != null)
+            return existing.GetComponent<ResourceSpot>();
+
+        string resourcePath = $"Assets/ScriptableObjects/Raw Resources/{oreName}.asset";
+        var resource = AssetDatabase.LoadAssetAtPath<Resource>(resourcePath);
+        if (resource == null)
+        {
+            resource = ScriptableObject.CreateInstance<Resource>();
+            resource.itemName = oreName;
+            AssetDatabase.CreateAsset(resource, resourcePath);
+        }
+
+        string materialPath = $"{Folder}/{metal} Mineral.mat";
+        var material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
+        if (material == null)
+        {
+            material = new Material(Shader.Find("Universal Render Pipeline/Lit"))
+                { name = metal + " Mineral", color = color, enableInstancing = true };
+            AssetDatabase.CreateAsset(material, materialPath);
+        }
+
+        if (resource.objModel == null)
+        {
+            resource.objModel = CreateLooseOrePrefab(resource, material);
+            EditorUtility.SetDirty(resource);
+        }
+
+        var deposit = (GameObject)PrefabUtility.InstantiatePrefab(ironDeposit.gameObject);
+        try
+        {
+            deposit.name = oreName + " Deposit";
+            var spot = deposit.GetComponent<ResourceSpot>();
+            spot.resourceData = resource;
+            PrefabUtility.RecordPrefabInstancePropertyModifications(spot);
+            foreach (var renderer in deposit.GetComponentsInChildren<MeshRenderer>())
+            {
+                if (!renderer.name.Contains("Mineral"))
+                    continue;
+                renderer.sharedMaterial = material;
+                renderer.transform.localScale = Vector3.Scale(renderer.transform.localScale, crystalScale);
+                PrefabUtility.RecordPrefabInstancePropertyModifications(renderer);
+                PrefabUtility.RecordPrefabInstancePropertyModifications(renderer.transform);
+            }
+            return PrefabUtility.SaveAsPrefabAsset(deposit, path).GetComponent<ResourceSpot>();
+        }
+        finally
+        {
+            Object.DestroyImmediate(deposit);
+        }
+    }
+
+    private static GameObject CreateLooseOrePrefab(Resource resource, Material material)
+    {
+        string path = $"Assets/prefabs/Resources/{resource.DisplayName}.prefab";
+        var existing = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        if (existing != null)
+            return existing;
+
+        var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(Folder + "/Ore Rock.asset");
+        var item = new GameObject(resource.DisplayName, typeof(MeshFilter), typeof(MeshRenderer),
+            typeof(BoxCollider), typeof(Rigidbody), typeof(Interactable), typeof(Carriable), typeof(FactoryItem));
+        try
+        {
+            item.transform.localScale = Vector3.one * 0.32f;
+            item.GetComponent<MeshFilter>().sharedMesh = mesh;
+            item.GetComponent<MeshRenderer>().sharedMaterial = material;
+            var collider = item.GetComponent<BoxCollider>();
+            collider.center = mesh.bounds.center;
+            collider.size = mesh.bounds.size;
+            item.GetComponent<Rigidbody>().interpolation = RigidbodyInterpolation.Interpolate;
+            var factoryItem = item.GetComponent<FactoryItem>();
+            factoryItem.itemData = resource;
+            factoryItem.material = FactoryItem.MaterialKind.IronOre;
+            var interactable = new SerializedObject(item.GetComponent<Interactable>());
+            interactable.FindProperty("promptText").stringValue = resource.DisplayName;
+            interactable.ApplyModifiedPropertiesWithoutUndo();
+            return PrefabUtility.SaveAsPrefabAsset(item, path);
+        }
+        finally
+        {
+            Object.DestroyImmediate(item);
+        }
     }
 
     private static ResourceSpot CreateOreSpotPrefab()

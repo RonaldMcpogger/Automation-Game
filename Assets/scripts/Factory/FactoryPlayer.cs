@@ -203,9 +203,10 @@ public class FactoryPlayer : MonoBehaviour
                 station.Interact(this);
         }
 
-        int ore = GetItemCount(DefaultOreResource);
-        int ingots = GetItemCount(DefaultIngotResource);
-        int plates = GetItemCount(DefaultPlateResource);
+        var inventory = Inventory.Instance;
+        int ore = inventory != null ? inventory.GetItemCount(DefaultOreResource) : 0;
+        int ingots = inventory != null ? inventory.GetItemCount(DefaultIngotResource) : 0;
+        int plates = inventory != null ? inventory.GetItemCount(DefaultPlateResource) : 0;
 
         if (resourceBarText != null)
         {

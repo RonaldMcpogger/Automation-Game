@@ -230,7 +230,6 @@ public class BuildController : MonoBehaviour
     {
         try
         {
-            enforceBuildCosts = true;
             ResolveBuildCatalog();
             if (viewCamera == null)
                 viewCamera = GetComponentInChildren<Camera>() ?? Camera.main;
@@ -252,6 +251,7 @@ public class BuildController : MonoBehaviour
         if (buildableFactories != null && buildableFactories.Length > 0)
         {
             buildableFactories = System.Array.FindAll(buildableFactories, d => d != null && d.kind != FactoryKind.ResourceSpot);
+            selectedFactoryData = GetFactoryData(SelectedType);
             return;
         }
 
@@ -697,6 +697,7 @@ public class BuildController : MonoBehaviour
         {
             machine.factoryData = selectedFactoryData;
             machine.ApplyFactoryData();
+            machine.EnsureReceiver();
             if (machine is Drill drill)
                 drill.InitReferences();
 
@@ -711,6 +712,16 @@ public class BuildController : MonoBehaviour
                     break;
                 }
             }
+
+            var receiver = machine.GetComponentInChildren<ConveyorReceiver>();
+            if (receiver != null)
+                ConnectNearbyInput(receiver, receiver.transform.position, 2.5f);
+        }
+        else if (factoryObject.TryGetComponent<SubmissionBin>(out var bin))
+        {
+            if (selectedFactoryData.inputItem != null)
+                bin.acceptedItem = selectedFactoryData.inputItem;
+            ConnectNearbyInput(bin, position + Vector3.up, 3.5f);
         }
         Debug.Log("Built " + selectedFactoryData.DisplayName + " at " + position);
         return factoryObject;
@@ -743,6 +754,9 @@ public class BuildController : MonoBehaviour
 
     private void HandlePlacement() 
     {
+        if (selectedFactoryData == null)
+            return;
+
         bool cancelPressed = false;
         if (buildCancelAction != null && buildCancelAction.WasPressedThisFrame())
             cancelPressed = true;
@@ -851,8 +865,8 @@ public class BuildController : MonoBehaviour
                 return;
             }
 
-            BuildSelectedFactory(hit.point);
-            DeductBuildCost(selectedFactoryData);
+            if (BuildSelectedFactory(hit.point) != null)
+                DeductBuildCost(selectedFactoryData);
             
         }
 
@@ -1048,9 +1062,7 @@ public class BuildController : MonoBehaviour
         if (previewRoot == null)
             CreatePreviewObjects();
 
-        bool hasHit = TryGetPlacementHit(out RaycastHit hit);
-
-        if (!hasHit)
+        if (selectedFactoryData == null || !TryGetPlacementHit(out RaycastHit hit))
         {
             previewRoot.SetActive(false);
             currentSnap = default;
@@ -1465,23 +1477,28 @@ public class BuildController : MonoBehaviour
 
         bin.counterLabel = CreateSign("SUBMISSION BIN\n0 / 10 INGOTS", groundPoint + Vector3.up * 2.7f, binRoot.transform, yellowMaterial.color);
 
-        // Auto-connect conveyor ending near this bin
+        ConnectNearbyInput(bin, groundPoint + Vector3.up, 3.5f);
+        return bin;
+    }
+
+    private void ConnectNearbyInput(ConveyorReceiver receiver, Vector3 inputPosition, float snapDistance)
+    {
+        if (receiver.HasInputConnection)
+            return;
+
         foreach (var conveyor in FindObjectsByType<Conveyor>())
         {
-            if (conveyor.ConveyerSpline != null)
-            {
-                Vector3 endPos = conveyor.ConveyerSpline.EvaluatePosition(1f);
-                if (!bin.HasInputConnection && !conveyor.HasOutputConnection
-                    && Vector3.Distance(endPos, groundPoint + Vector3.up * 1.0f) < 3.5f)
-                {
-                    conveyor.outputReceiver = bin;
-                    bin.inputConveyor = conveyor;
-                    break;
-                }
-            }
-        }
+            if (conveyor.HasOutputConnection || conveyor.ConveyerSpline == null)
+                continue;
 
-        return bin;
+            Vector3 endPosition = conveyor.ConveyerSpline.EvaluatePosition(1f);
+            if (Vector3.Distance(endPosition, inputPosition) >= snapDistance)
+                continue;
+
+            conveyor.outputReceiver = receiver;
+            receiver.inputConveyor = conveyor;
+            return;
+        }
     }
 
     public ResourceSpot BuildResourceSpot(Vector3 groundPoint, Quaternion rotation)
@@ -1581,7 +1598,7 @@ public class BuildController : MonoBehaviour
     {
         FactoryData data = GetFactoryData(BuildableType.Drill);
         var drillObj = data != null && data.factoryPrefab != null
-            ? Instantiate(data.factoryPrefab)
+            ? Instantiate(data.factoryPrefab, groundPoint, rotation)
             : GameObject.CreatePrimitive(PrimitiveType.Cube);
         drillObj.name = data?.DisplayName ?? "Drill";
         drillObj.transform.position = groundPoint;

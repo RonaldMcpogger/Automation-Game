@@ -13,40 +13,6 @@ using UnityEngine.InputSystem.UI;
 /// <summary>Authors saved assets and scene references. Never runs when the game starts.</summary>
 public static class CraftingSetup
 {
-    [InitializeOnLoadMethod]
-    private static void AutoSync()
-    {
-        EditorApplication.delayCall += RequestSync;
-    }
-
-    private static void RequestSync()
-    {
-        if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling)
-        {
-            EditorApplication.playModeStateChanged -= OnPlayModeChanged;
-            EditorApplication.playModeStateChanged += OnPlayModeChanged;
-            return;
-        }
-
-        try
-        {
-            SyncCraftingData();
-        }
-        catch (Exception ex)
-        {
-            Debug.LogWarning($"[CraftingSetup] AutoSync deferred: {ex.Message}");
-        }
-    }
-
-    private static void OnPlayModeChanged(PlayModeStateChange state)
-    {
-        if (state == PlayModeStateChange.EnteredEditMode)
-        {
-            EditorApplication.playModeStateChanged -= OnPlayModeChanged;
-            EditorApplication.delayCall += RequestSync;
-        }
-    }
-
     [MenuItem("Tools/Factory Crafting/Sync All Crafting and Machines")]
     public static void SyncCraftingData()
     {
@@ -69,7 +35,7 @@ public static class CraftingSetup
 
         var conveyorPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Conveyor.prefab");
         var smelterPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Factories/Smelter.prefab");
-        var binPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Submission Bin.prefab");
+        var binPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Factories/Submission Bin.prefab");
         var presserPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Factories/Presser.prefab");
         var drillPrefab = EnsureDrillPrefab();
 
@@ -125,7 +91,7 @@ public static class CraftingSetup
             drillData.processingSeconds = 2.0f;
             drillData.inputCapacity = 10;
             drillData.factoryPrefab = drillPrefab;
-            AssetDatabase.CreateAsset(drillData, "Assets/ScriptableObjects/Machines/Drill.asset");
+            AssetDatabase.CreateAsset(drillData, "Assets/Resources/FactoryData/Drill.asset");
         }
         else
         {
@@ -192,24 +158,6 @@ public static class CraftingSetup
 
         if (currentScene.isLoaded)
         {
-            var tabInScene = Object.FindAnyObjectByType<CraftingTab>(FindObjectsInactive.Include);
-            if (tabInScene != null)
-            {
-                PrefabUtility.RevertPrefabInstance(tabInScene.gameObject, InteractionMode.AutomatedAction);
-                var contentObj = tabInScene.GetComponentInChildren<ScrollRect>(true)?.content;
-                if (contentObj != null)
-                {
-                    var buttonsInScene = contentObj.GetComponentsInChildren<Button>(true).ToList();
-                    tabInScene.entries = new CraftingTab.RecipeEntry[allRecipes.Length];
-                    for (int i = 0; i < allRecipes.Length && i < buttonsInScene.Count; i++)
-                    {
-                        tabInScene.entries[i] = Entry(buttonsInScene[i], allRecipes[i]);
-                    }
-                    contentObj.sizeDelta = new Vector2(0, allRecipes.Length * 96f + 20f);
-                }
-                EditorUtility.SetDirty(tabInScene);
-                PrefabUtility.RecordPrefabInstancePropertyModifications(tabInScene);
-            }
             EnsureUIInfrastructureInScene(currentScene);
 
             var player = Object.FindAnyObjectByType<FactoryPlayer>();
@@ -253,8 +201,7 @@ public static class CraftingSetup
 
     private static FactoryData LoadFactoryData(string name)
     {
-        return AssetDatabase.LoadAssetAtPath<FactoryData>($"Assets/ScriptableObjects/Machines/{name}.asset")
-            ?? Resources.Load<FactoryData>($"FactoryData/{name}");
+        return AssetDatabase.LoadAssetAtPath<FactoryData>($"Assets/Resources/FactoryData/{name}.asset");
     }
 
     public static GameObject EnsureDrillPrefab()
@@ -425,17 +372,16 @@ public static class CraftingSetup
     {
         string path = $"Assets/Recipes/{name}.asset";
         var recipe = AssetDatabase.LoadAssetAtPath<CraftingRecipe>(path);
-        if (recipe == null)
-        {
-            recipe = ScriptableObject.CreateInstance<CraftingRecipe>();
-            AssetDatabase.CreateAsset(recipe, path);
-        }
+        if (recipe != null)
+            return recipe;
+
+        recipe = ScriptableObject.CreateInstance<CraftingRecipe>();
         recipe.recipeName = name.Replace("Craft ", "").Replace("Handcraft ", "");
         recipe.ingredients = new[] { new CraftingIngredient { item = input, amount = amount } };
         recipe.outputItem = output;
         recipe.outputAmount = outputCount;
         recipe.craftDuration = duration;
-        EditorUtility.SetDirty(recipe);
+        AssetDatabase.CreateAsset(recipe, path);
         return recipe;
     }
 

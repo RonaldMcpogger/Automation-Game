@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -41,9 +42,11 @@ public class CraftingTableTests
         spot.Interact(player); // A second call during the cooldown must not duplicate ore.
         Assert.That(inventory.GetItemCount(spot.resourceData), Is.EqualTo(1));
         Assert.That(player.GetItemCount(spot.resourceData), Is.EqualTo(1));
-        Assert.That(player.TryCollect(spot.resourceData, 5), Is.True);
         var builder = player.GetComponent<BuildController>();
-        builder.DeductBuildCost(BuildableType.Smelter);
+        var drill = builder.buildableFactories.Single(data => data.kind == FactoryKind.Drill);
+        Assert.That(player.TryCollect(drill.BuildCostResource, drill.BuildCostQty), Is.True);
+        builder.DeductBuildCost(BuildableType.Drill);
+        Assert.That(inventory.GetItemCount(drill.BuildCostResource), Is.Zero);
         Assert.That(inventory.GetItemCount(spot.resourceData), Is.EqualTo(1));
         Assert.That(player.OreCount, Is.EqualTo(1));
         var machine = builder.BuildSmelter(new Vector3(25, 0, 25), Quaternion.identity);
