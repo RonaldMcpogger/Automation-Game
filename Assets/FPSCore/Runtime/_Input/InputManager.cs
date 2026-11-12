@@ -144,6 +144,9 @@ public class InputManager : MonoBehaviour
     /// <summary>Esc this frame while a UI is open. The UI should close itself and call ExitUIMode.</summary>
     public bool UICancelPressed => UIMode && _unlock != null && _unlock.WasPressedThisFrame();
 
+    /// <summary>Esc this frame, using the same binding as cursor unlock and UI cancel.</summary>
+    public bool EscapePressed => _unlock != null && _unlock.WasPressedThisFrame();
+
     public bool SprintHeld => Active(_sprint) && _sprint.IsPressed();
     public bool ZoomHeld => CursorLocked && Active(_zoom) && _zoom.IsPressed();
 
