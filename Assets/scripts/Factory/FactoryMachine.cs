@@ -5,6 +5,11 @@ public class FactoryMachine : FactoryInteractable
 {
     [Tooltip("Recipe and presentation data for this machine.")]
     public FactoryData factoryData;
+    [Header("Conveyor Ports")]
+    [Tooltip("Conveyor input snap point. Defaults to the child named Input.")]
+    public Transform inputPort;
+    [Tooltip("Conveyor output snap point. Defaults to the child named Output.")]
+    public Transform outputPort;
     public Conveyor outputBelt;
     public FactoryItem ingotPrefab;
     public Renderer statusLight;
@@ -24,15 +29,24 @@ public class FactoryMachine : FactoryInteractable
 
     protected virtual void Awake()
     {
+        ResolvePorts();
         ApplyFactoryData();
         EnsureReceiver();
+    }
+
+    public void ResolvePorts()
+    {
+        if (inputPort == null)
+            inputPort = transform.Find("Input");
+        if (outputPort == null)
+            outputPort = transform.Find("Output");
     }
 
     public void EnsureReceiver()
     {
         if (InputItem == null)
             return;
-        Transform inputPort = transform.Find("Input");
+        ResolvePorts();
         GameObject target = inputPort != null ? inputPort.gameObject : gameObject;
         if (target.GetComponent<ConveyorReceiver>() == null)
         {
