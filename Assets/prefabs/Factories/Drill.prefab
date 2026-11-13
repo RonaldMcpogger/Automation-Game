@@ -9,6 +9,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4978307850189979302}
+  - component: {fileID: 7446632871177805915}
+  - component: {fileID: 3368263750013335036}
   m_Layer: 0
   m_Name: Output
   m_TagString: Untagged
@@ -25,12 +27,69 @@ Transform:
   m_GameObject: {fileID: 247391315073420998}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.83, z: 1.2}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalPosition: {x: 0, y: 1.267, z: 0.94}
+  m_LocalScale: {x: 0.05, y: 0.05, z: 0.05}
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 4746470453440990604}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &7446632871177805915
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 247391315073420998}
+  m_Mesh: {fileID: -2432090755550338912, guid: c6729431c4939ef4da175ae91e7a611f, type: 3}
+--- !u!23 &3368263750013335036
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 247391315073420998}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: d23656bb1e57eb342941e2eec3f8ea00, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
 --- !u!1 &1008370406140941412
 GameObject:
   m_ObjectHideFlags: 0
@@ -172,7 +231,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d7111000000000000000000000000001, type: 3}
   m_Name: 
   m_EditorClassIdentifier: AutomationGame::Drill
-  factoryData: {fileID: 0}
+  factoryData: {fileID: 11400000, guid: d0110005000000000000000000000006, type: 2}
+  inputPort: {fileID: 0}
+  outputPort: {fileID: 4978307850189979302}
   outputBelt: {fileID: 0}
   ingotPrefab: {fileID: 0}
   statusLight: {fileID: 1570047917641560161}
@@ -183,12 +244,10 @@ MonoBehaviour:
   processingSeconds: 2
   beltSurfaceHeight: 0.83
   drillBit: {fileID: 6902191072006122185}
-  outputPort: {fileID: 4978307850189979302}
   drillSpinSpeed: 360
   minedResource: {fileID: 0}
   targetSpot: {fileID: 0}
   spotCheckRadius: 4
-  autoMineWithoutSpot: 1
 --- !u!65 &8975897577528769017
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -208,8 +267,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 2.2, y: 2.4, z: 2.2}
-  m_Center: {x: 0, y: 1.2, z: 0}
+  m_Size: {x: 1.79, y: 1.95, z: 1.96}
+  m_Center: {x: 0.02, y: 1.18, z: 0}
 --- !u!1 &5694577118399961539
 GameObject:
   m_ObjectHideFlags: 0

@@ -4808,6 +4808,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: AutomationGame::FactoryMachine
   factoryData: {fileID: 0}
+  inputPort: {fileID: 0}
+  outputPort: {fileID: 0}
   outputBelt: {fileID: 1201760797}
   ingotPrefab: {fileID: 1569788509712831468, guid: a50145ba71b0d8042a31506e4068a281, type: 3}
   statusLight: {fileID: 42037155}
@@ -6549,8 +6551,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: AutomationGame::BuildController
   viewCamera: {fileID: 0}
   playerTransform: {fileID: 0}
-  maxBuildDistance: 30
-  conveyorHeightOffset: 1.16
+  maxBuildDistance: 20
+  conveyorHeightOffset: 1
   minConveyorLength: 1
   maxBuildingSlope: 20
   blockPlacementMask:
@@ -6558,7 +6560,7 @@ MonoBehaviour:
     m_Bits: 64
   placementProbeRadius: 0.1
   conveyorConnectionClearance: 0.75
-  conveyorRadius: 0.45
+  conveyorRadius: 0.498
   conveyorSides: 4
   conveyorSegmentsPerUnit: 4
   enableConveyorCurves: 1
@@ -6581,7 +6583,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 93af2da589a84f6f9cd49c2a7d723bb1, type: 2}
   - {fileID: 11400000, guid: b5eb8d1b64e342d7abb7a7ac47d0c101, type: 2}
   - {fileID: 11400000, guid: 2bd7ff2c57fd4f4d99f11bd3a5c70c81, type: 2}
-  - {fileID: 11400000, guid: d0110005000000000000000000000005, type: 2}
+  - {fileID: 11400000, guid: d0110005000000000000000000000006, type: 2}
   - {fileID: 11400000, guid: 4e6ad9cd0cac29e4a95ec4774b8ed093, type: 2}
   sidebarOnRight: 0
   buildTabCatalog: {fileID: 1864282687}

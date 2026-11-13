@@ -7,9 +7,11 @@ public class FactoryMachine : FactoryInteractable
     public FactoryData factoryData;
     [Header("Conveyor Ports")]
     [Tooltip("Conveyor input snap point. Defaults to the child named Input.")]
-    public Transform inputPort;
+    [SerializeField]
+    protected Transform inputPort;
     [Tooltip("Conveyor output snap point. Defaults to the child named Output.")]
-    public Transform outputPort;
+    [SerializeField]
+    protected Transform outputPort;
     public Conveyor outputBelt;
     public FactoryItem ingotPrefab;
     public Renderer statusLight;
@@ -42,6 +44,16 @@ public class FactoryMachine : FactoryInteractable
             outputPort = transform.Find("Output");
     }
 
+    public Transform OutputPort
+    {
+        get { return outputPort; }
+        set { outputPort = value; }
+    }
+    public Transform InputPort
+    {
+        get { return inputPort; }
+        set { inputPort = value; }
+    }
     public void EnsureReceiver()
     {
         if (InputItem == null)

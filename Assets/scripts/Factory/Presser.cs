@@ -8,8 +8,6 @@ public class Presser : FactoryMachine, IHeldTargetReceiver
 {
     [Header("Components")]
     public Transform smashHead;
-    public Transform inputPort;
-    public Transform outputPort;
     public Transform bed;
     public Collider trigger;
     public PresserReceiver receiver;

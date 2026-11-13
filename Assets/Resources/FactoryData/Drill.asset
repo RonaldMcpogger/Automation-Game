@@ -16,7 +16,7 @@ MonoBehaviour:
   factoryName: Drill
   kind: 6
   description: Auto-gathers ore from resource spots and outputs to conveyors.
-  placementOffset: {x: 0, y: 0, z: 0}
+  placementOffset: {x: 0, y: 1, z: 0}
   placementRotationOffset: {x: 0, y: 0, z: 0}
   useTwoPointPlacement: 0
   inputItem: {fileID: 0}
@@ -27,6 +27,6 @@ MonoBehaviour:
   inputCapacity: 10
   processingSeconds: 2
   icon: {fileID: 0}
-  freeToBuild: 0
+  freeToBuild: 1
   buildCostItem: {fileID: 11400000, guid: e0110005000000000000000000000005, type: 2}
   buildCostAmount: 1

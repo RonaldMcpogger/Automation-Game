@@ -73,8 +73,8 @@ public class DrillTests
         Assert.That(drill.targetSpot, Is.SameAs(copper));
         Assert.That(drill.OutputItem, Is.SameAs(copper.resourceData));
 
-        var belt = buildController.BuildConveyorBelt(drill.outputPort.position,
-            drill.outputPort.position + Vector3.forward * 5f);
+        var belt = buildController.BuildConveyorBelt(drill.OutputPort.position,
+            drill.OutputPort.position + Vector3.forward * 5f);
         drill.outputBelt = belt;
         belt.inputMachine = drill;
         drill.processingSeconds = 0.05f;
