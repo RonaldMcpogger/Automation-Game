@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0b3a340a14189dc4a93f9d8dbddb86eb, type: 3}
   m_Name: Drill
   m_EditorClassIdentifier: Assembly-CSharp::Resource
-  objModel: {fileID: 0}
+  objModel: {fileID: 4039369816461724893, guid: 73c370dfe11d9934abf7c26f9ed0336a, type: 3}
   itemName: Drill
   ItemImage: {fileID: 0}
   maxStackSize: 20

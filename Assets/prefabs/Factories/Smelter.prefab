@@ -418,7 +418,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d54f2241cec50894d9a36e77b651ab04, type: 3}
   m_Name: 
   m_EditorClassIdentifier: AutomationGame::FactoryMachine
-  factoryData: {fileID: 0}
+  factoryData: {fileID: 11400000, guid: 93af2da589a84f6f9cd49c2a7d723bb1, type: 2}
   inputPort: {fileID: 8105313499737534943}
   outputPort: {fileID: 3616273007340632706}
   outputBelt: {fileID: 0}

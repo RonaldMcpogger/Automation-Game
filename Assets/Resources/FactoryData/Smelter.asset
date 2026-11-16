@@ -23,6 +23,7 @@ MonoBehaviour:
   outputItem: {fileID: 11400000, guid: a958f79a8f3568f4d82b7ab04330c143, type: 2}
   ValidCraftables:
   - {fileID: 11400000, guid: ca5052e4ece2bc94484f2e727f2d7a4c, type: 2}
+  - {fileID: 11400000, guid: 68d84f38734f35a4faf3c6e8e11afe6e, type: 2}
   inputPerCycle: 1
   outputPerCycle: 1
   inputCapacity: 10
