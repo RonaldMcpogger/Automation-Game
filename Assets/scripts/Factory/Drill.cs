@@ -2,14 +2,14 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// Automatically extracts ore from a resource spot (or default ore) and
+/// Automatically extracts ore from a nearby resource spot and
 /// outputs directly to a connected conveyor belt or internal storage hopper.
 /// </summary>
 public class Drill : FactoryMachine
 {
     [Header("Drill Components")]
     public Transform drillBit;
-    public Transform outputPort;
+
     [Tooltip("Degrees per second the drill bit spins when actively mining.")]
     public float drillSpinSpeed = 360f;
 
@@ -17,8 +17,6 @@ public class Drill : FactoryMachine
     public Resource minedResource;
     public ResourceSpot targetSpot;
     public float spotCheckRadius = 4f;
-    public bool autoMineWithoutSpot = true;
-
     private bool initialized;
 
     protected override void Awake()
@@ -71,11 +69,13 @@ public class Drill : FactoryMachine
 
     public void DetectResourceSpot()
     {
+        targetSpot = null;
+
         // 1. Raycast down to check if placed directly on top of a ResourceSpot
         if (Physics.Raycast(transform.position + Vector3.up * 2f, Vector3.down, out var hit, 5f))
         {
             var spot = hit.collider.GetComponentInParent<ResourceSpot>();
-            if (spot != null)
+            if (spot != null && Vector3.Distance(transform.position, spot.transform.position) <= spotCheckRadius)
             {
                 targetSpot = spot;
                 minedResource = spot.resourceData;
@@ -108,7 +108,8 @@ public class Drill : FactoryMachine
             return;
         }
 
-        // 3. Fallback to factoryData output item or standard iron ore
+        // Keep an output resource for UI and item setup, but a fallback resource
+        // does not authorize mining without a nearby deposit.
         if (minedResource == null)
         {
             if (factoryData != null && factoryData.outputItem != null)
@@ -165,12 +166,16 @@ public class Drill : FactoryMachine
 
     protected override void Update()
     {
-        if (minedResource == null)
+        if (!IsTargetSpotInRange())
+        {
+            targetSpot = null;
+            minedResource = null;
             DetectResourceSpot();
+        }
 
         bool beltCanAccept = outputBelt != null && outputBelt.CanLoadAtStart;
         bool bufferHasRoom = BufferedOre < inputCapacity;
-        bool canMine = (targetSpot != null || autoMineWithoutSpot) && (beltCanAccept || bufferHasRoom);
+        bool canMine = IsTargetSpotInRange() && (beltCanAccept || bufferHasRoom);
 
         if (canMine)
         {
@@ -211,6 +216,13 @@ public class Drill : FactoryMachine
                 ? blockedMaterial
                 : IsProcessing ? workingMaterial : idleMaterial;
         }
+    }
+
+    private bool IsTargetSpotInRange()
+    {
+        return targetSpot != null
+            && targetSpot.isActiveAndEnabled
+            && Vector3.Distance(transform.position, targetSpot.transform.position) <= spotCheckRadius;
     }
 
     private bool TryLoadBelt(Conveyor belt)

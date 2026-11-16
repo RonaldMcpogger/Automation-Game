@@ -7,6 +7,8 @@ using UnityEngine.Splines;
 [RequireComponent(typeof(Collider))]
 public class Conveyor : MonoBehaviour
 {
+    private const float OutputConnectionTolerance = 0.75f;
+
     [Header("Spline Container")]
     [Tooltip("Usually the SplineContainer on this same GameObject.")]
     public SplineContainer ConveyerSpline;
@@ -92,6 +94,41 @@ public class Conveyor : MonoBehaviour
     {
         FindSplineContainer();
         RefreshSplineLength();
+    }
+
+    private void Start()
+    {
+        ValidateOutputConnection();
+    }
+
+    private void ValidateOutputConnection()
+    {
+        if (ConveyerSpline == null || ConveyerSpline.Spline == null)
+            return;
+
+        Vector3 endPosition = ConveyerSpline.EvaluatePosition(1f);
+        if (outputConveyor != null
+            && (outputConveyor.ConveyerSpline == null || outputConveyor.ConveyerSpline.Spline == null
+                || Vector3.Distance(endPosition, outputConveyor.StartPosition) > OutputConnectionTolerance))
+        {
+            if (outputConveyor.inputConveyor == this)
+                outputConveyor.inputConveyor = null;
+            outputConveyor = null;
+        }
+
+        if (outputReceiver == null)
+            return;
+
+        Vector3 receiverPosition = outputReceiver.transform.position + Vector3.up;
+        if (outputReceiver is PresserReceiver || outputReceiver is MachineReceiver)
+            receiverPosition = outputReceiver.transform.position;
+
+        if (Vector3.Distance(endPosition, receiverPosition) > OutputConnectionTolerance)
+        {
+            if (outputReceiver.inputConveyor == this)
+                outputReceiver.inputConveyor = null;
+            outputReceiver = null;
+        }
     }
 
     private void OnValidate() => FindSplineContainer();

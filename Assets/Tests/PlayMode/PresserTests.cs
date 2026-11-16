@@ -134,13 +134,13 @@ public class PresserTests
         presser.processingSeconds = 0.05f;
 
         // 2. Build input conveyor leading to presser
-        Vector3 inPort = presser.inputPort != null ? presser.inputPort.position : presserPos - Vector3.forward * 1.8f;
+        Vector3 inPort = presser.InputPort != null ? presser.InputPort.position : presserPos - Vector3.forward * 1.8f;
         Vector3 inBeltStart = inPort - Vector3.forward * 6f;
         var inBelt = buildController.BuildConveyorBelt(inBeltStart, inPort);
         inBelt.speed = 100f;
 
         // 3. Build output conveyor leading away from presser
-        Vector3 outPort = presser.outputPort != null ? presser.outputPort.position : presserPos + Vector3.forward * 1.8f;
+        Vector3 outPort = presser.OutputPort != null ? presser.OutputPort.position : presserPos + Vector3.forward * 1.8f;
         Vector3 outBeltEnd = outPort + Vector3.forward * 6f;
         var outBelt = buildController.BuildConveyorBelt(outPort, outBeltEnd);
         outBelt.speed = 100f;

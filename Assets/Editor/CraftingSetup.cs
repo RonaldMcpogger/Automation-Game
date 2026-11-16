@@ -282,7 +282,7 @@ public static class CraftingSetup
         textMesh.color = Color.white;
 
         drill.drillBit = bitObj.transform;
-        drill.outputPort = output.transform;
+        drill.OutputPort = output.transform;
         drill.statusLight = lamp.GetComponent<Renderer>();
         drill.idleMaterial = yellowMat;
         drill.workingMaterial = greenMat;

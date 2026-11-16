@@ -702,9 +702,9 @@ public class BuildController : MonoBehaviour
                 drill.InitReferences();
 
             machine.ResolvePorts();
-            Transform outPort = (machine is Drill d) ? d.outputPort
-                : (machine is Presser p) ? p.outputPort
-                : machine.outputPort;
+            Transform outPort = (machine is Drill d) ? d.OutputPort
+                : (machine is Presser p) ? p.OutputPort
+                : machine.InputPort;
             Vector3 outputPos = outPort != null ? outPort.position : position + (rotation * Vector3.forward) * 1.8f;
             foreach (var conveyor in FindObjectsByType<Conveyor>())
             {
@@ -959,16 +959,16 @@ public class BuildController : MonoBehaviour
             foreach (var machine in FindObjectsByType<FactoryMachine>())
             {
                 machine.ResolvePorts();
-                Vector3 outputPort = (machine is Drill dr && dr.outputPort != null)
-                    ? dr.outputPort.position
-                    : (machine is Presser pm && pm.outputPort != null)
-                    ? pm.outputPort.position
-                    : machine.outputPort != null
-                    ? machine.outputPort.position
+                Vector3 outputPort = (machine is Drill dr && dr.OutputPort != null)
+                    ? dr.OutputPort.position
+                    : (machine is Presser pm && pm.OutputPort != null)
+                    ? pm.OutputPort.position
+                    : machine.OutputPort != null
+                    ? machine.OutputPort.position
                     : machine.transform.position + machine.transform.forward * 1.8f;
-                if (!(machine is Presser pm2 && pm2.outputPort != null)
-                    && !(machine is Drill dr2 && dr2.outputPort != null)
-                    && machine.outputPort == null)
+                if (!(machine is Presser pm2 && pm2.OutputPort != null)
+                    && !(machine is Drill dr2 && dr2.OutputPort != null)
+                    && machine.OutputPort == null)
                     outputPort.y = machine.transform.position.y - 1.2f + conveyorHeightOffset;
                 float dist = Vector3.Distance(hitPoint, outputPort);
                 float centerDist = Vector3.Distance(hitPoint, machine.transform.position);
@@ -1012,15 +1012,15 @@ public class BuildController : MonoBehaviour
             {
                 Vector3 intake = bin.transform.position + Vector3.up * 1.0f;
                 string targetName = "Receiver Intake";
-                if (bin is PresserReceiver pr && pr.presser != null && pr.presser.inputPort != null)
+                if (bin is PresserReceiver pr && pr.presser != null && pr.presser.InputPort != null)
                 {
-                    intake = pr.presser.inputPort.position;
+                    intake = pr.presser.InputPort.position;
                     targetName = "Presser Input";
                 }
                 else if (bin is MachineReceiver mr && mr.machine != null)
                 {
                     mr.machine.ResolvePorts();
-                    intake = mr.machine.inputPort != null ? mr.machine.inputPort.position : mr.transform.position;
+                    intake = mr.machine.InputPort != null ? mr.machine.InputPort.position : mr.transform.position;
                     targetName = $"{mr.machine.factoryData?.DisplayName ?? "Smelter"} Input";
                 }
                 else if (bin is SubmissionBin)
@@ -1322,12 +1322,12 @@ public class BuildController : MonoBehaviour
         if (snap.machine != null)
         {
             snap.machine.ResolvePorts();
-            direction = (snap.machine is Presser pm && pm.outputPort != null)
-                ? pm.outputPort.forward
-                : (snap.machine is Drill dr && dr.outputPort != null)
-                ? dr.outputPort.forward
-                : snap.machine.outputPort != null
-                ? snap.machine.outputPort.forward
+            direction = (snap.machine is Presser pm && pm.OutputPort != null)
+                ? pm.OutputPort.forward
+                : (snap.machine is Drill dr && dr.OutputPort != null)
+                ? dr.OutputPort.forward
+                : snap.machine.OutputPort != null
+                ? snap.machine.OutputPort.forward
                 : snap.machine.transform.forward;
         }
         else if (snap.receiver != null)
@@ -1427,8 +1427,8 @@ public class BuildController : MonoBehaviour
 
         // Auto-connect to conveyor starting at the configured output port.
         machine.ResolvePorts();
-        Vector3 front = machine.outputPort != null
-            ? machine.outputPort.position
+        Vector3 front = machine.OutputPort != null
+            ? machine.OutputPort.position
             : center + (rotation * Vector3.forward) * 1.8f;
         foreach (var conveyor in FindObjectsByType<Conveyor>())
         {
@@ -1442,7 +1442,7 @@ public class BuildController : MonoBehaviour
 
         // Auto-connect to conveyor ending near input
         machine.ResolvePorts();
-        Transform inputTransform = machine.inputPort;
+        Transform inputTransform = machine.InputPort;
         Vector3 inputPos = inputTransform != null ? inputTransform.position : center - (rotation * Vector3.forward) * 1.8f;
         var receiver = (inputTransform != null ? inputTransform.gameObject : smelterObj).GetComponent<MachineReceiver>();
         if (receiver == null)
@@ -1579,8 +1579,8 @@ public class BuildController : MonoBehaviour
         CreateSign("PRESSER\n1 ingot > 1 plate\nDrop ingot to press", groundPoint + Vector3.up * 2.8f, presserObj.transform, Color.white);
 
         // Auto-connect to conveyor starting in front of output port
-        Vector3 outputPos = presser.outputPort != null
-            ? presser.outputPort.position
+        Vector3 outputPos = presser.OutputPort != null
+            ? presser.OutputPort.position
             : groundPoint + (rotation * Vector3.forward) * 1.8f;
         foreach (var conveyor in FindObjectsByType<Conveyor>())
         {
@@ -1593,8 +1593,8 @@ public class BuildController : MonoBehaviour
         }
 
         // Auto-connect to conveyor ending near input port
-        Vector3 inputPos = presser.inputPort != null
-            ? presser.inputPort.position
+        Vector3 inputPos = presser.InputPort != null
+            ? presser.InputPort.position
             : groundPoint - (rotation * Vector3.forward) * 1.8f;
         foreach (var conveyor in FindObjectsByType<Conveyor>())
         {
@@ -1648,8 +1648,8 @@ public class BuildController : MonoBehaviour
         CreateSign("DRILL\nAuto-mines ore\nPress E to collect", groundPoint + Vector3.up * 2.8f, drillObj.transform, Color.white);
 
         // Auto-connect to conveyor starting in front of output port
-        Vector3 outputPos = drill.outputPort != null
-            ? drill.outputPort.position
+        Vector3 outputPos = drill.OutputPort != null
+            ? drill.OutputPort.position
             : groundPoint + (rotation * Vector3.forward) * 1.8f;
         foreach (var conveyor in FindObjectsByType<Conveyor>())
         {
@@ -1681,12 +1681,12 @@ public class BuildController : MonoBehaviour
             foreach (var machine in FindObjectsByType<FactoryMachine>())
             {
                 machine.ResolvePorts();
-                Vector3 outputPort = (machine is Presser pm && pm.outputPort != null)
-                    ? pm.outputPort.position
-                    : machine.outputPort != null
-                    ? machine.outputPort.position
+                Vector3 OutputPort = (machine is Presser pm && pm.OutputPort != null)
+                    ? pm.OutputPort.position
+                    : machine.OutputPort != null
+                    ? machine.OutputPort.position
                     : machine.transform.position + machine.transform.forward * 1.8f;
-                if (machine.outputBelt == null && (Vector3.Distance(outputPort, start) < 2.5f
+                if (machine.outputBelt == null && (Vector3.Distance(OutputPort, start) < 2.5f
                     || Vector3.Distance(machine.transform.position, start) < 3.0f))
                 {
                     sourceMachine = machine;
@@ -1715,10 +1715,10 @@ public class BuildController : MonoBehaviour
         {
             foreach (var receiver in FindObjectsByType<ConveyorReceiver>())
             {
-                Vector3 intakePos = (receiver is PresserReceiver pr && pr.presser != null && pr.presser.inputPort != null)
-                    ? pr.presser.inputPort.position
-                    : (receiver is MachineReceiver mr && mr.machine != null && mr.machine.inputPort != null)
-                    ? mr.machine.inputPort.position
+                Vector3 intakePos = (receiver is PresserReceiver pr && pr.presser != null && pr.presser.InputPort != null)
+                    ? pr.presser.InputPort.position
+                    : (receiver is MachineReceiver mr && mr.machine != null && mr.machine.InputPort != null)
+                    ? mr.machine.InputPort.position
                     : receiver.transform.position;
                 if (!receiver.HasInputConnection && Vector3.Distance(intakePos, end) < 3.5f)
                 {
