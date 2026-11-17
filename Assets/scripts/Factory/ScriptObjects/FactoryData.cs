@@ -1,4 +1,3 @@
-using NUnit.Framework;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -42,10 +41,17 @@ public class FactoryData : ScriptableObject
 
     public List<CraftingRecipe> ValidCraftables; // test
     
-    
+    [Header("Machine Storage")]
+    [Tooltip("How many resource stacks this machine can hold as input.")]
+    [Min(1)] public int inputSlotCount = 1;
+    [Tooltip("How many resource stacks this machine can hold as output.")]
+    [Min(1)] public int outputSlotCount = 1;
     [Min(1)] public int inputPerCycle = 1;
     [Min(1)] public int outputPerCycle = 1;
+    [Tooltip("Maximum item count in one input slot.")]
     [Min(1)] public int inputCapacity = 10;
+    [Tooltip("Maximum item count in one output slot.")]
+    [Min(1)] public int outputCapacity = 10;
     [Min(0.05f)] public float processingSeconds = 2f;
 
     [Header("Build UI")]

@@ -93,7 +93,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: cbdb0f906c5da2d48b78d55d06bf525e, type: 2}
+  - {fileID: 2100000, guid: a156d6f11d49af946996ee2602488346, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -156,7 +156,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67aafb535481fdc4bbc12fb846590ee7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: AutomationGame::FactoryItem
-  itemData: {fileID: 11400000, guid: a958f79a8f3568f4d82b7ab04330c143, type: 2}
+  itemData: {fileID: 11400000, guid: c2bcfb19c1ef4694999d2d5eda11306a, type: 2}
   material: 1
 --- !u!114 &1244286915823051162
 MonoBehaviour:
@@ -172,7 +172,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: FPSCore::Interactable
   interactable: 1
   interactWhen: 1
-  promptText: Iron Ingot
+  promptText: Tin Ingot
   prompts: []
   IsDebugEnabled: 0
 --- !u!114 &1179351798775915994

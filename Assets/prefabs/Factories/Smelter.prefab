@@ -419,6 +419,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: AutomationGame::FactoryMachine
   factoryData: {fileID: 11400000, guid: 93af2da589a84f6f9cd49c2a7d723bb1, type: 2}
+  inputCapacity: 10
+  outputCapacity: 10
+  inputSlots:
+  - item: {fileID: 0}
+    amount: 0
+  - item: {fileID: 0}
+    amount: 0
+  outputSlots:
+  - item: {fileID: 0}
+    amount: 0
+  - item: {fileID: 0}
+    amount: 0
   inputPort: {fileID: 8105313499737534943}
   outputPort: {fileID: 3616273007340632706}
   outputBelt: {fileID: 0}
@@ -427,7 +439,6 @@ MonoBehaviour:
   idleMaterial: {fileID: 2100000, guid: 3e6ceef1420c6cc4c9beeadb7e3999d6, type: 2}
   workingMaterial: {fileID: 2100000, guid: 75aefb2333ebd3d4cad554e3e3105c52, type: 2}
   blockedMaterial: {fileID: 2100000, guid: f4bb66821207a1a4a98d353fbaf056db, type: 2}
-  inputCapacity: 10
   processingSeconds: 2
   beltSurfaceHeight: 0.83
 --- !u!1 &6969578822706482125

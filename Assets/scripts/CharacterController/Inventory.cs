@@ -9,9 +9,11 @@ public class Inventory : MonoBehaviour
 {
     /// <summary>The active player inventory, used by world pickups.</summary>
     public static Inventory Instance { get; private set; }
+
     [Header("Capacity")]
     [Min(1)] public int itemCapacity = 20;
     public event System.Action Changed;
+
     public int TotalCount
     {
         get { int count = 0; foreach (var slot in slots) count += slot.amount; return count; }

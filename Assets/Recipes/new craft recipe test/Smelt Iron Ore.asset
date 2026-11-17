@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a272d2ef89c6a594b9ee2f5c600abb81, type: 3}
-  m_Name: Handcraft Iron Plate
+  m_Name: Smelt Iron Ore
   m_EditorClassIdentifier: AutomationGame::CraftingRecipe
-  recipeName: Iron Plate
+  recipeName: Smelt Iron ore
   ingredients:
-  - item: {fileID: 11400000, guid: a958f79a8f3568f4d82b7ab04330c143, type: 2}
-    amount: 2
-  outputItem: {fileID: 11400000, guid: 11531c87ba2203b4ba752e4aa3281860, type: 2}
+  - item: {fileID: 11400000, guid: 9ca77deed8a8cf64d8a9018ed0b77c86, type: 2}
+    amount: 1
+  outputItem: {fileID: 11400000, guid: a958f79a8f3568f4d82b7ab04330c143, type: 2}
   outputAmount: 1
   craftDuration: 0

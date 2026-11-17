@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0b3a340a14189dc4a93f9d8dbddb86eb, type: 3}
   m_Name: Tin Ingot
   m_EditorClassIdentifier: AutomationGame::Resource
-  objModel: {fileID: 0}
-  itemName: 
+  objModel: {fileID: 1078104801955959902, guid: 5961ce056a9b5d040959e09387089e5d, type: 3}
+  itemName: Tin Ingot
   ItemImage: {fileID: 0}
   maxStackSize: 60

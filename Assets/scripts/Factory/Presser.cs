@@ -85,6 +85,7 @@ public class Presser : FactoryMachine, IHeldTargetReceiver
     }
 
     public override string Status =>
+        UsesRecipeSystem ? base.Status :
         OutputReady && outputBelt != null && !outputBelt.CanLoadAtStart ? $"Belt blocked | Queued: {BufferedOre}"
         : IsProcessing ? $"Pressing {Mathf.Clamp01(elapsed / processingSeconds):P0} | Queued: {BufferedOre}"
         : OutputReady ? $"Plate ready | Queued: {BufferedOre}"
@@ -92,6 +93,8 @@ public class Presser : FactoryMachine, IHeldTargetReceiver
 
     public override string GetPrompt(FactoryPlayer player)
     {
+        if (UsesRecipeSystem)
+            return base.GetPrompt(player);
         if (IsProcessing)
             return $"PRESSER - Pressing {Mathf.Clamp01(elapsed / processingSeconds):P0}";
         if (BufferedOre >= inputCapacity)
@@ -103,6 +106,11 @@ public class Presser : FactoryMachine, IHeldTargetReceiver
 
     public override void Interact(FactoryPlayer player)
     {
+        if (UsesRecipeSystem)
+        {
+            base.Interact(player);
+            return;
+        }
         if (player != null && player.OreCount > 0 && (player.CarriedItem == InputItem || InputItem == null))
             LoadFrom(player);
     }
@@ -133,6 +141,12 @@ public class Presser : FactoryMachine, IHeldTargetReceiver
         if (!isActiveAndEnabled || obj == null)
             return false;
 
+        if (UsesRecipeSystem)
+        {
+            Rigidbody recipeBody = obj.GetComponentInParent<Rigidbody>();
+            return recipeBody != null && base.TryReceive(recipeBody);
+        }
+
         if (!IsValidInput(obj, out FactoryItem item, out Carriable carriable, out Rigidbody rb))
             return false;
 
@@ -161,6 +175,8 @@ public class Presser : FactoryMachine, IHeldTargetReceiver
 
     public override bool TryReceive(Rigidbody body)
     {
+        if (UsesRecipeSystem)
+            return base.TryReceive(body);
         if (!isActiveAndEnabled || body == null)
             return false;
         return TryProcess(body.gameObject);
@@ -192,6 +208,20 @@ public class Presser : FactoryMachine, IHeldTargetReceiver
 
     protected override void Update()
     {
+        if (UsesRecipeSystem)
+        {
+            base.Update();
+
+            if (smashHead != null)
+            {
+                float t = IsProcessing && currentRecipe != null
+                    ? Mathf.Clamp01(elapsed / Mathf.Max(0.01f, currentRecipe.craftDuration)) : 0f;
+                float stroke = Mathf.Sin(t * Mathf.PI);
+                smashHead.localPosition = smashRestPos - Vector3.up * (stroke * smashStroke);
+            }
+            return;
+        }
+
         FactoryItem outputPrefab = OutputPrefab;
 
         if (OutputReady)
