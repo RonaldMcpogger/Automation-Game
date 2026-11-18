@@ -200,7 +200,13 @@ public class FactoryPlayer : MonoBehaviour
 
             if (station != null && station.isActiveAndEnabled
                 && (station.HoldToInteract ? input.InteractHeld : input.InteractPressed))
-                station.Interact(this);
+            {
+                // The menu reads live FactoryData and slot lists; it never owns machine data.
+                if (station is FactoryMachine selectedMachine)
+                    MachineInterface.EnsureInstance()?.Open(selectedMachine);
+                else
+                    station.Interact(this);
+            }
         }
 
         var inventory = Inventory.Instance;

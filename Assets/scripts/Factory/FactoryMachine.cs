@@ -52,6 +52,15 @@ public class FactoryMachine : FactoryInteractable
         && factoryData.ValidCraftables != null
         && factoryData.ValidCraftables.Count > 0;
 
+    /// <summary>True while this machine is allowed to process recipes and move conveyor output.</summary>
+    public bool IsRunning { get; private set; } = true;
+
+    /// <summary>Allows this machine to process again after it has been stopped from its menu.</summary>
+    public virtual void StartMachine() => IsRunning = true;
+
+    /// <summary>Pauses this machine without removing its inputs, outputs, or in-progress recipe time.</summary>
+    public virtual void StopMachine() => IsRunning = false;
+
     protected virtual void Awake()
     {
         ResolvePorts();
@@ -112,6 +121,8 @@ public class FactoryMachine : FactoryInteractable
     {
         get
         {
+            if (!IsRunning) return "Stopped";
+
             if (UsesRecipeSystem)
             {
                 if (OutputReady) return "Output stored - waiting for conveyor";
@@ -191,6 +202,7 @@ public class FactoryMachine : FactoryInteractable
     /// <summary>Chooses either recipe processing or the legacy one-input processing path each frame.</summary>
     protected virtual void Update()
     {
+        if (!IsRunning) return;
         if (UsesRecipeSystem) UpdateRecipeMachine();
         else UpdateLegacyMachine();
     }

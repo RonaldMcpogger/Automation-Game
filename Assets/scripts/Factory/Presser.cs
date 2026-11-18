@@ -85,6 +85,7 @@ public class Presser : FactoryMachine, IHeldTargetReceiver
     }
 
     public override string Status =>
+        !IsRunning ? "Stopped" :
         UsesRecipeSystem ? base.Status :
         OutputReady && outputBelt != null && !outputBelt.CanLoadAtStart ? $"Belt blocked | Queued: {BufferedOre}"
         : IsProcessing ? $"Pressing {Mathf.Clamp01(elapsed / processingSeconds):P0} | Queued: {BufferedOre}"
@@ -208,6 +209,8 @@ public class Presser : FactoryMachine, IHeldTargetReceiver
 
     protected override void Update()
     {
+        if (!IsRunning) return;
+
         if (UsesRecipeSystem)
         {
             base.Update();

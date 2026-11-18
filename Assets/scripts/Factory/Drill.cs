@@ -129,6 +129,7 @@ public class Drill : FactoryMachine
     {
         get
         {
+            if (!IsRunning) return "Stopped";
             if (BufferedOre >= inputCapacity && (outputBelt == null || !outputBelt.CanLoadAtStart))
                 return $"Storage full ({BufferedOre}/{inputCapacity}) | Belt blocked";
             if (IsProcessing)
@@ -166,6 +167,8 @@ public class Drill : FactoryMachine
 
     protected override void Update()
     {
+        if (!IsRunning) return;
+
         if (!IsTargetSpotInRange())
         {
             targetSpot = null;
