@@ -93,6 +93,18 @@ cancels a belt start. Conveyor previews snap to free machine and belt endpoints.
 Buildings remain upright and cannot be interactively placed on surfaces steeper
 than 20 degrees. Conveyor endpoints still support snapping to machine sides.
 
+## Machine menu controls
+
+Look at a machine and press **E** to open its live input/output menu. **Stop**
+pauses that machine's processing and conveyor output, keeping its stored items
+and in-progress crafting time. **Start** resumes it. Only the action that changes
+the current running state is enabled. **Close** or **Esc** returns to gameplay.
+
+The saved MainScene menu has **Start Button** and **Stop Button** references on
+its `MachineInterface` component. The menu binds their click listeners itself;
+no additional On Click entries or references on individual machines are needed.
+`FactoryMachine` owns the running state and the start/stop behavior.
+
 ## Terrain foundation
 
 - One **1024 x 1024 metre** map (1 square kilometre), centered at world X/Z=0,

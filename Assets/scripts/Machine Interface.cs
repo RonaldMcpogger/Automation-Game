@@ -10,6 +10,11 @@ public class MachineInterface : MonoBehaviour
 
     [Header("Machine Data")]
     [SerializeField] private TMP_Text machineName;
+    [Header("Machine Controls")]
+    [Tooltip("Starts or resumes the machine currently displayed by this menu.")]
+    [SerializeField] private Button startButton;
+    [Tooltip("Pauses the displayed machine while preserving its items and processing progress.")]
+    [SerializeField] private Button stopButton;
     [Header("Slot Lists")]
     [SerializeField] private GameObject InputContent;
     [SerializeField] private GameObject InputSlotPrefab;
@@ -43,12 +48,16 @@ public class MachineInterface : MonoBehaviour
         Instance = this;
         canvasGroup = GetComponent<CanvasGroup>();
         AutoWireSceneReferences();
+        if (startButton != null) startButton.onClick.AddListener(StartMachine);
+        if (stopButton != null) stopButton.onClick.AddListener(StopMachine);
         SetOpen(false);
     }
 
     /// <summary>Clears the shared menu reference when this menu is destroyed.</summary>
     private void OnDestroy()
     {
+        if (startButton != null) startButton.onClick.RemoveListener(StartMachine);
+        if (stopButton != null) stopButton.onClick.RemoveListener(StopMachine);
         if (Instance == this) Instance = null;
     }
 
@@ -83,16 +92,18 @@ public class MachineInterface : MonoBehaviour
         SetOpen(false);
     }
 
-    /// <summary>Starts or resumes the selected machine. Assign this method to the menu Start button.</summary>
+    /// <summary>Starts or resumes the selected machine from the menu's Start button.</summary>
     public void StartMachine()
     {
         if (machine != null) machine.StartMachine();
+        RefreshControls();
     }
 
-    /// <summary>Pauses the selected machine. Assign this method to the menu Stop button.</summary>
+    /// <summary>Pauses the selected machine from the menu's Stop button.</summary>
     public void StopMachine()
     {
         if (machine != null) machine.StopMachine();
+        RefreshControls();
     }
 
     /// <summary>Changes menu visibility and switches the input system between UI and gameplay modes.</summary>
@@ -107,6 +118,7 @@ public class MachineInterface : MonoBehaviour
         }
         if (open) InputManager.Instance?.EnterUIMode(this);
         else InputManager.Instance?.ExitUIMode(this);
+        RefreshControls();
     }
 
     /// <summary>Updates the title and both slot lists using the active machine's live data.</summary>
@@ -118,6 +130,15 @@ public class MachineInterface : MonoBehaviour
 
         RefreshSlots(machine.InputSlots, InputContent.transform, InputSlotPrefab, inputViews, machine.inputCapacity, "Input");
         RefreshSlots(machine.OutputSlots, OutputContent.transform, OutputSlotPrefab, outputViews, machine.outputCapacity, "Output");
+        RefreshControls();
+    }
+
+    /// <summary>Enables only the action that changes the selected machine's running state.</summary>
+    private void RefreshControls()
+    {
+        bool hasMachine = isOpen && machine != null;
+        if (startButton != null) startButton.interactable = hasMachine && !machine.IsRunning;
+        if (stopButton != null) stopButton.interactable = hasMachine && machine.IsRunning;
     }
 
     /// <summary>Creates enough slot views and updates each one with its item, amount, and capacity.</summary>
@@ -170,6 +191,10 @@ public class MachineInterface : MonoBehaviour
         }
         WireSlotList(background, "Input slot list", ref InputContent, ref InputSlotPrefab);
         WireSlotList(background, "OutputSlot List", ref OutputContent, ref OutputSlotPrefab);
+        if (startButton == null)
+            startButton = FindDescendant(background, "Start")?.GetComponent<Button>();
+        if (stopButton == null)
+            stopButton = FindDescendant(background, "Stop")?.GetComponent<Button>();
     }
 
     /// <summary>Connects a named scroll list to its content transform and first slot template.</summary>
