@@ -32,7 +32,7 @@ public class SubmissionBin : ConveyorReceiver
     public override bool TryReceive(Rigidbody body)
     {
         if (!isActiveAndEnabled || body == null || !body.TryGetComponent<FactoryItem>(out var item)
-            || !item.TryMarkSubmitted(acceptedItem))
+  )
             return false;
 
         Resource res = item.itemData;
