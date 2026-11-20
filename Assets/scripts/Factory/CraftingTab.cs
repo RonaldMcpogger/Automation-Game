@@ -68,6 +68,8 @@ public class CraftingTab : MonoBehaviour
         player = user;
         inventory = Inventory.Instance;
         inventory.Changed += Refresh;
+        if (CentralStorage.Instance != null)
+            CentralStorage.Instance.Changed += Refresh;
         resultMessage = string.Empty;
         isCrafting = false;
         craftTimer = 0f;
@@ -81,6 +83,8 @@ public class CraftingTab : MonoBehaviour
     {
         if (isCrafting) CancelCraft();
         if (inventory != null) inventory.Changed -= Refresh;
+        if (CentralStorage.Instance != null)
+            CentralStorage.Instance.Changed -= Refresh;
         inventory = null;
         ActiveTable = null;
         player = null;
@@ -205,7 +209,13 @@ public class CraftingTab : MonoBehaviour
         if (SelectedRecipe != null && SelectedRecipe.IsValid)
         {
             foreach (var ingredient in SelectedRecipe.ingredients)
-                text.AppendLine($"{ingredient.amount} {ingredient.item.DisplayName}  (Have {inventory?.GetItemCount(ingredient.item) ?? 0})");
+            {
+                int inBag = inventory?.GetItemCount(ingredient.item) ?? 0;
+                int inCentral = CentralStorage.Instance != null ? CentralStorage.Instance.GetItemCount(ingredient.item) : 0;
+                int total = inBag + inCentral;
+                string sourceDetail = inCentral > 0 ? $" ({inBag} bag, {inCentral} base)" : "";
+                text.AppendLine($"{ingredient.amount} {ingredient.item.DisplayName}  (Have {total}{sourceDetail})");
+            }
             text.AppendLine($"\nProduces {SelectedRecipe.outputAmount} {SelectedRecipe.outputItem.DisplayName}");
         }
         if (requirements != null) requirements.text = text.ToString();

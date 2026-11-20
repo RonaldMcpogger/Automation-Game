@@ -15,6 +15,11 @@ public class SubmissionBin : ConveyorReceiver
         EnsureInteractable();
     }
 
+    private void Start()
+    {
+        UpdateLabel();
+    }
+
     public void EnsureInteractable()
     {
         if (GetComponent<SubmissionBinInteractable>() == null)
@@ -30,6 +35,18 @@ public class SubmissionBin : ConveyorReceiver
             || !item.TryMarkSubmitted(acceptedItem))
             return false;
 
+        Resource res = item.itemData;
+        if (res == null)
+        {
+            var smelterData = Resources.Load<FactoryData>("FactoryData/Smelter");
+            if (smelterData != null) res = smelterData.outputItem;
+        }
+
+        var storage = CentralStorage.EnsureInstance();
+        bool deposited = storage != null ? storage.TryDeposit(res, 1) : (Inventory.Instance != null && Inventory.Instance.TryAdd(res, 1));
+        if (!deposited)
+            return false;
+
         SubmittedCount++;
         StoredCount++;
         UpdateLabel();
@@ -39,11 +56,19 @@ public class SubmissionBin : ConveyorReceiver
         return true;
     }
 
+    public void RegisterDeposit()
+    {
+        SubmittedCount++;
+        StoredCount++;
+        UpdateLabel();
+    }
+
     public bool TakeIngot(FactoryPlayer player)
     {
-        if (StoredCount <= 0 || player == null)
+        if (player == null)
             return false;
 
+        var storage = CentralStorage.Instance;
         Resource itemToGive = acceptedItem;
         if (itemToGive == null)
         {
@@ -52,7 +77,17 @@ public class SubmissionBin : ConveyorReceiver
                 itemToGive = smelterData.outputItem;
         }
 
-        if (player.TryCollect(itemToGive))
+        if (storage != null && itemToGive != null && storage.HasItem(itemToGive, 1))
+        {
+            if (player.TryCollect(itemToGive))
+            {
+                storage.TryRemove(itemToGive, 1);
+                if (StoredCount > 0) StoredCount--;
+                UpdateLabel();
+                return true;
+            }
+        }
+        else if (StoredCount > 0 && itemToGive != null && player.TryCollect(itemToGive))
         {
             StoredCount--;
             UpdateLabel();
@@ -66,20 +101,19 @@ public class SubmissionBin : ConveyorReceiver
     {
         if (counterLabel != null)
         {
-            counterLabel.text = $"SUBMISSION BIN\n{SubmittedCount} / {targetCount} INGOTS"
-                + (StoredCount > 0 ? $"\n({StoredCount} READY)" : "")
-                + (GoalReached ? "\nGOAL COMPLETE" : "");
+            string filterText = acceptedItem != null ? acceptedItem.DisplayName : "ALL MATERIALS";
+            counterLabel.text = $"DROP CHUTE\n[{filterText}]\n{SubmittedCount} Processed\n-> Central Storage";
         }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        // Also accepts a loose ingot that falls into the opening.
+        // Also accepts a loose item that falls into the opening.
         TryReceive(other.attachedRigidbody);
     }
 }
 
-/// <summary>Allows the player to retrieve processed ingots directly from the submission bin.</summary>
+/// <summary>Allows the player to inspect the drop chute or manually deposit materials.</summary>
 public class SubmissionBinInteractable : FactoryInteractable
 {
     public SubmissionBin bin;
@@ -98,11 +132,14 @@ public class SubmissionBinInteractable : FactoryInteractable
         if (bin == null)
             return string.Empty;
 
-        string itemName = bin.acceptedItem != null ? bin.acceptedItem.DisplayName : "Iron Ingot";
-        if (bin.StoredCount <= 0)
-            return $"SUBMISSION BIN | {bin.SubmittedCount} / {bin.targetCount} Submitted (0 in bin)";
+        string itemName = bin.acceptedItem != null ? bin.acceptedItem.DisplayName : "materials";
+        var carried = player != null && Inventory.Instance != null ? Inventory.Instance.CurrentResource : null;
+        if (carried != null && (bin.acceptedItem == null || carried == bin.acceptedItem))
+        {
+            return $"Press [{{key}}] to deposit {carried.DisplayName} -> Central Storage ({bin.SubmittedCount} sent)";
+        }
 
-        return $"Press [{{key}}] to take {itemName} ({bin.StoredCount} in bin)";
+        return $"DROP CHUTE | Routes {itemName} to Central Storage ({bin.SubmittedCount} sent)";
     }
 
     public override void Interact(FactoryPlayer player)
@@ -110,7 +147,19 @@ public class SubmissionBinInteractable : FactoryInteractable
         if (bin == null)
             bin = GetComponent<SubmissionBin>();
 
-        if (bin != null && player != null)
-            bin.TakeIngot(player);
+        if (bin == null || player == null || Inventory.Instance == null)
+            return;
+
+        var toDeposit = bin.acceptedItem ?? Inventory.Instance.CurrentResource;
+        if (toDeposit != null && Inventory.Instance.HasItem(toDeposit, 1))
+        {
+            var central = CentralStorage.EnsureInstance();
+            bool stored = central != null ? central.TryDeposit(toDeposit, 1) : false;
+            if (stored)
+            {
+                Inventory.Instance.TryRemove(toDeposit, 1);
+                bin.RegisterDeposit();
+            }
+        }
     }
 }
