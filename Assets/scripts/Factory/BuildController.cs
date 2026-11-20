@@ -39,7 +39,7 @@ public class BuildController : MonoBehaviour
     [Header("Build Settings")]
     [Min(5f)] public float maxBuildDistance = 30f;
     [Min(0.1f)] public float conveyorHeightOffset = 1.0f;
-    [Min(0.5f)] public float minConveyorLength = 1.0f;
+    [Min(0.5f)] public float minConveyorLength = 0.5f;
     [Tooltip("Buildings stay upright. Steep terrain needs foundations in a later milestone.")]
     [Range(0f, 45f)] public float maxBuildingSlope = 20f;
 
@@ -162,18 +162,26 @@ public class BuildController : MonoBehaviour
         if (costAmount <= 0 || costItem == null)
             return true;
 
-        if (!inventory.HasItem(costItem, costAmount))
+        int playerHas = inventory.GetItemCount(costItem);
+        int centralHas = CentralStorage.Instance != null ? CentralStorage.Instance.GetItemCount(costItem) : 0;
+        int totalHas = playerHas + centralHas;
+
+        if (totalHas < costAmount)
         {
             // Backward compatibility fallback for tests checking raw ore/ingots
             Resource rawItem = data.FallbackCostItem;
             int rawAmount = data.FallbackCostQty;
-            if (rawItem != null && rawAmount > 0 && inventory.HasItem(rawItem, rawAmount))
+            int playerRaw = rawItem != null ? inventory.GetItemCount(rawItem) : 0;
+            int centralRaw = (rawItem != null && CentralStorage.Instance != null) ? CentralStorage.Instance.GetItemCount(rawItem) : 0;
+            int totalRaw = playerRaw + centralRaw;
+
+            if (rawItem != null && rawAmount > 0 && totalRaw >= rawAmount)
                 return true;
 
-            int current = inventory.GetItemCount(costItem);
+            int current = totalHas;
             message = current == 0
                 ? $"None in inventory (Craft at Table)"
-                : $"Requires {costAmount}x {costItem.DisplayName} (You have: {current})";
+                : $"Requires {costAmount}x {costItem.DisplayName} (Available: {current})";
             return false;
         }
 
@@ -203,18 +211,38 @@ public class BuildController : MonoBehaviour
         Resource costItem = data.BuildCostResource;
         int costAmount = data.BuildCostQty;
 
-        if (costAmount > 0 && costItem != null && inventory.HasItem(costItem, costAmount))
+        if (costAmount > 0 && costItem != null)
         {
-            inventory.TryRemove(costItem, costAmount);
-            return;
+            int playerHas = inventory.GetItemCount(costItem);
+            int centralHas = CentralStorage.Instance != null ? CentralStorage.Instance.GetItemCount(costItem) : 0;
+            if (playerHas + centralHas >= costAmount)
+            {
+                int fromPlayer = Mathf.Min(playerHas, costAmount);
+                if (fromPlayer > 0)
+                    inventory.TryRemove(costItem, fromPlayer);
+                int remainder = costAmount - fromPlayer;
+                if (remainder > 0 && CentralStorage.Instance != null)
+                    CentralStorage.Instance.TryRemove(costItem, remainder);
+                return;
+            }
         }
 
         // Backward compatibility fallback: deduct raw ingredients if player doesn't have machine item
         Resource rawItem = data.FallbackCostItem;
         int rawAmount = data.FallbackCostQty;
-        if (rawAmount > 0 && rawItem != null && inventory.HasItem(rawItem, rawAmount))
+        if (rawAmount > 0 && rawItem != null)
         {
-            inventory.TryRemove(rawItem, rawAmount);
+            int playerRaw = inventory.GetItemCount(rawItem);
+            int centralRaw = CentralStorage.Instance != null ? CentralStorage.Instance.GetItemCount(rawItem) : 0;
+            if (playerRaw + centralRaw >= rawAmount)
+            {
+                int fromPlayerRaw = Mathf.Min(playerRaw, rawAmount);
+                if (fromPlayerRaw > 0)
+                    inventory.TryRemove(rawItem, fromPlayerRaw);
+                int remainderRaw = rawAmount - fromPlayerRaw;
+                if (remainderRaw > 0 && CentralStorage.Instance != null)
+                    CentralStorage.Instance.TryRemove(rawItem, remainderRaw);
+            }
         }
     }
 
@@ -637,13 +665,26 @@ public class BuildController : MonoBehaviour
         Vector3 previous = candidateSpline.EvaluatePosition(from);
         float radius = Mathf.Max(0.05f, conveyorRadius * 0.8f);
 
+        Transform startRoot = startSnap.machine != null ? startSnap.machine.transform
+            : startSnap.receiver != null ? startSnap.receiver.transform
+            : startSnap.conveyor != null ? startSnap.conveyor.transform : null;
+        Transform endRoot = endSnap.receiver != null ? endSnap.receiver.transform
+            : endSnap.machine != null ? endSnap.machine.transform
+            : endSnap.conveyor != null ? endSnap.conveyor.transform : null;
+
         for (int i = 1; i <= segments; i++)
         {
             float t = Mathf.Lerp(from, to, i / (float)segments);
             Vector3 current = candidateSpline.EvaluatePosition(t);
-            if (Physics.CheckCapsule(previous, current, radius, blockPlacementMask,
-                QueryTriggerInteraction.Collide))
+            var colliders = Physics.OverlapCapsule(previous, current, radius, blockPlacementMask, QueryTriggerInteraction.Collide);
+            foreach (var col in colliders)
+            {
+                if (col == null) continue;
+                if (startRoot != null && col.transform.IsChildOf(startRoot)) continue;
+                if (endRoot != null && col.transform.IsChildOf(endRoot)) continue;
+
                 return true;
+            }
 
             previous = current;
         }
@@ -930,7 +971,12 @@ public class BuildController : MonoBehaviour
             if (playerTransform != null && hit.collider.transform.IsChildOf(playerTransform))
                 return false;
 
-            if ( Vector3.Angle(Vector3.up, hit.normal) > maxBuildingSlope)
+            // When building conveyors or snapping, aiming at machines, receivers, or conveyors is valid even on vertical walls
+            bool isFactoryObject = hit.collider.GetComponentInParent<FactoryMachine>() != null
+                || hit.collider.GetComponentInParent<ConveyorReceiver>() != null
+                || hit.collider.GetComponentInParent<Conveyor>() != null;
+
+            if (!isFactoryObject && Vector3.Angle(Vector3.up, hit.normal) > maxBuildingSlope)
                 return false;
 
             return true;
@@ -1025,14 +1071,20 @@ public class BuildController : MonoBehaviour
                 }
                 else if (bin is SubmissionBin)
                 {
-                    targetName = "Submission Bin";
+                    intake = bin.transform.position + Vector3.up * 1.0f;
+                    targetName = "Drop Chute";
+                }
+                else if (bin is CentralStorage)
+                {
+                    intake = bin.transform.position + Vector3.up * 1.2f + bin.transform.forward * 1.5f;
+                    targetName = "Central Storage";
                 }
 
                 float dist = Vector3.Distance(hitPoint, intake);
                 float centerDist = Vector3.Distance(hitPoint, bin.transform.position);
 
                 // A receiver intake can accept only one belt.
-                if (!bin.HasInputConnection && (dist < bestDist || centerDist < 2.5f))
+                if (!bin.HasInputConnection && (dist < bestDist || centerDist < 3.5f))
                 {
                     bestDist = Mathf.Min(dist, centerDist);
                     snap.position = intake;

@@ -213,21 +213,27 @@ public class FactoryPlayer : MonoBehaviour
         int ore = inventory != null ? inventory.GetItemCount(DefaultOreResource) : 0;
         int ingots = inventory != null ? inventory.GetItemCount(DefaultIngotResource) : 0;
         int plates = inventory != null ? inventory.GetItemCount(DefaultPlateResource) : 0;
+        int centralOre = CentralStorage.Instance != null ? CentralStorage.Instance.GetItemCount(DefaultOreResource) : 0;
+        int centralIngots = CentralStorage.Instance != null ? CentralStorage.Instance.GetItemCount(DefaultIngotResource) : 0;
+        int centralPlates = CentralStorage.Instance != null ? CentralStorage.Instance.GetItemCount(DefaultPlateResource) : 0;
 
         if (resourceBarText != null)
         {
-            resourceBarText.text = $"<color=#E09550>ORE: {ore}</color>    |    <color=#F0D060>INGOTS: {ingots}</color>    |    <color=#A0D0F0>PLATES: {plates}</color>";
+            string oreText = centralOre > 0 ? $"{ore} (+{centralOre})" : $"{ore}";
+            string ingotText = centralIngots > 0 ? $"{ingots} (+{centralIngots})" : $"{ingots}";
+            string plateText = centralPlates > 0 ? $"{plates} (+{centralPlates})" : $"{plates}";
+            resourceBarText.text = $"<color=#E09550>ORE: {oreText}</color>    |    <color=#F0D060>INGOTS: {ingotText}</color>    |    <color=#A0D0F0>PLATES: {plateText}</color>";
         }
 
         if (objectiveText != null)
         {
             if (submissionBin != null)
             {
+                int inStorage = CentralStorage.Instance != null ? CentralStorage.Instance.TotalStoredCount : submissionBin.StoredCount;
                 objectiveText.text = submissionBin.GoalReached
-                    ? "<b>FIRST FACTORY COMPLETE!</b>\nKeep producing, or build a Presser to make plates."
-                    : $"<b>OBJECTIVE</b>  |  Submit {submissionBin.targetCount} Iron Ingots\n"
-                        + $"Delivered: {submissionBin.SubmittedCount} / {submissionBin.targetCount}"
-                        + (submissionBin.StoredCount > 0 ? $" ({submissionBin.StoredCount} in bin)" : "");
+                    ? "<b>FACTORY AUTOMATION ACTIVE!</b>\nOres routed to Central Storage. Build & craft using stored items."
+                    : $"<b>OBJECTIVE</b>  |  Deposit {submissionBin.targetCount} Ingots to Storage\n"
+                        + $"Delivered: {submissionBin.SubmittedCount} / {submissionBin.targetCount} (Total in Storage: {inStorage})";
             }
             else
             {
@@ -255,15 +261,17 @@ public class FactoryPlayer : MonoBehaviour
             {
                 var data = build.SelectedFactoryData;
                 bool canAfford = build.CanAfford(build.SelectedType, out string affordMsg);
-                int count = Inventory.Instance != null && data != null && data.BuildCostResource != null
-                    ? Inventory.Instance.GetItemCount(data.BuildCostResource) : 0;
+                int count = data != null && data.BuildCostResource != null
+                    ? (Inventory.Instance != null ? Inventory.Instance.GetItemCount(data.BuildCostResource) : 0)
+                      + (CentralStorage.Instance != null ? CentralStorage.Instance.GetItemCount(data.BuildCostResource) : 0)
+                    : 0;
                 if (!canAfford)
                 {
-                    promptText.text = $"[B] Exit  |  <color=#FF5555>{data?.DisplayName}: None in inventory (Craft at Table)</color>";
+                    promptText.text = $"[B] Exit  |  <color=#FF5555>{data?.DisplayName}: None in inventory or storage</color>";
                 }
                 else
                 {
-                    promptText.text = $"[B] Exit Build Mode  |  [LMB] Place {data?.DisplayName} ({count} in inventory)  |  [R] Rotate";
+                    promptText.text = $"[B] Exit Build Mode  |  [LMB] Place {data?.DisplayName} ({count} available)  |  [R] Rotate";
                 }
             }
             else

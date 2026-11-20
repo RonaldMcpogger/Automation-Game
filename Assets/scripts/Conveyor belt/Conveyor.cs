@@ -7,7 +7,7 @@ using UnityEngine.Splines;
 [RequireComponent(typeof(Collider))]
 public class Conveyor : MonoBehaviour
 {
-    private const float OutputConnectionTolerance = 0.75f;
+    private const float OutputConnectionTolerance = 2.5f;
 
     [Header("Spline Container")]
     [Tooltip("Usually the SplineContainer on this same GameObject.")]

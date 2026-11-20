@@ -290,7 +290,7 @@ GameObject:
   - component: {fileID: 6334820600642223643}
   - component: {fileID: 179609694585398181}
   m_Layer: 0
-  m_Name: Submission Bin
+  m_Name: Drop Chute
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

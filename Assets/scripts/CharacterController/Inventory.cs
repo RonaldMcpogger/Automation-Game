@@ -204,23 +204,34 @@ public class Inventory : MonoBehaviour
     }
 
     // Plan a complete exchange in a copy. Failure never consumes ingredients or adds partial output.
-    public bool CanCraft(CraftingRecipe recipe, out string reason) => PlanCraft(recipe, out _, out reason);
+    public bool CanCraft(CraftingRecipe recipe, out string reason) => PlanCraft(recipe, out _, out _, out reason);
 
     public bool TryCraft(CraftingRecipe recipe, out string reason)
     {
-        if (!PlanCraft(recipe, out var planned, out reason)) return false;
+        if (!PlanCraft(recipe, out var planned, out var fromCentral, out reason)) return false;
         for (int i = 0; i < slots.Count; i++)
         {
             slots[i].item = planned[i].item;
             slots[i].amount = planned[i].amount;
         }
+
+        if (fromCentral != null && CentralStorage.Instance != null)
+        {
+            foreach (var kvp in fromCentral)
+            {
+                if (kvp.Value > 0)
+                    CentralStorage.Instance.TryRemove(kvp.Key, kvp.Value);
+            }
+        }
+
         NotifyChanged(recipe.outputItem);
         return true;
     }
 
-    private bool PlanCraft(CraftingRecipe recipe, out Slot[] planned, out string reason)
+    private bool PlanCraft(CraftingRecipe recipe, out Slot[] planned, out Dictionary<Resource, int> fromCentral, out string reason)
     {
         planned = null;
+        fromCentral = new Dictionary<Resource, int>();
         reason = "Recipe is not configured.";
         if (recipe == null || !recipe.IsValid) return false;
         var requirements = new Dictionary<Resource, long>();
@@ -230,11 +241,15 @@ public class Inventory : MonoBehaviour
             requirements[ingredient.item] = count + ingredient.amount;
         }
         foreach (var requirement in requirements)
-            if (GetItemCount(requirement.Key) < requirement.Value)
+        {
+            int inBag = GetItemCount(requirement.Key);
+            int inCentral = CentralStorage.Instance != null ? CentralStorage.Instance.GetItemCount(requirement.Key) : 0;
+            if (inBag + inCentral < requirement.Value)
             {
                 reason = $"Need {requirement.Value} {requirement.Key.DisplayName}.";
                 return false;
             }
+        }
 
         planned = new Slot[slots.Count];
         for (int i = 0; i < slots.Count; i++)
@@ -248,6 +263,16 @@ public class Inventory : MonoBehaviour
                 if (planned[i].amount == 0) planned[i].item = null;
             }
         }
+
+        // Remaining requirements will be pulled from CentralStorage
+        foreach (var kvp in requirements)
+        {
+            if (kvp.Value > 0)
+            {
+                fromCentral[kvp.Key] = (int)kvp.Value;
+            }
+        }
+
         long total = recipe.outputAmount;
         foreach (var slot in planned) total += slot.amount;
         reason = "Inventory full. Make room for the output.";
