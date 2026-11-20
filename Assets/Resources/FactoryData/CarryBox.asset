@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6cd79ca07dee05943ab6e8d9713f2388, type: 3}
+  m_Name: CarryBox
+  m_EditorClassIdentifier: Assembly-CSharp::FactoryData
+  factoryPrefab: {fileID: 7967020918760865270, guid: 34e73a78ef092534cad01ced2d8c1363, type: 3}
+  factoryName: Carry Box
+  kind: 2
+  description: Box to put  and carry stuff
+  placementOffset: {x: 0, y: 0, z: 0}
+  placementRotationOffset: {x: 0, y: 0, z: 0}
+  useTwoPointPlacement: 0
+  inputItem: {fileID: 11400000, guid: a958f79a8f3568f4d82b7ab04330c143, type: 2}
+  outputItem: {fileID: 0}
+  ValidCraftables: []
+  inputSlotCount: 1
+  outputSlotCount: 1
+  inputPerCycle: 1
+  outputPerCycle: 1
+  inputCapacity: 10
+  outputCapacity: 10
+  processingSeconds: 2
+  icon: {fileID: 0}
+  freeToBuild: 1
+  buildCostItem: {fileID: 11400000, guid: e0110003000000000000000000000003, type: 2}
+  buildCostAmount: 1
