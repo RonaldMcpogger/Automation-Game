@@ -19,7 +19,7 @@ GameObject:
   - component: {fileID: 5940933081276302476}
   m_Layer: 0
   m_Name: Tin Ingot
-  m_TagString: Untagged
+  m_TagString: Items
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
