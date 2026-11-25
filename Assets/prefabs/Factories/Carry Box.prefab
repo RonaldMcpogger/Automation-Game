@@ -28,8 +28,8 @@ Transform:
   m_GameObject: {fileID: 90806522728733476}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.85, z: 1.3000002}
-  m_LocalScale: {x: 2.4, y: 1.4, z: 0.2}
+  m_LocalPosition: {x: 0, y: 1.0000001, z: 1.3}
+  m_LocalScale: {x: 2.4, y: 1.45474, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 9127601296271129881}
@@ -252,8 +252,8 @@ Transform:
   m_GameObject: {fileID: 704228255217424647}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.85, z: -1.3000002}
-  m_LocalScale: {x: 2.4, y: 1.4, z: 0.2}
+  m_LocalPosition: {x: 0, y: 1.0000001, z: -1.3}
+  m_LocalScale: {x: 2.4, y: 1.45474, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 9127601296271129881}
@@ -346,7 +346,7 @@ GameObject:
   m_Component:
   - component: {fileID: 426057205591489846}
   - component: {fileID: 3357849870752797582}
-  - component: {fileID: 1566303823079304451}
+  - component: {fileID: 3993199982703414466}
   m_Layer: 0
   m_Name: Carry Area
   m_TagString: Untagged
@@ -363,8 +363,8 @@ Transform:
   m_GameObject: {fileID: 1216820327904842191}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.975, z: 0}
-  m_LocalScale: {x: 2.32, y: 1, z: 2.4}
+  m_LocalPosition: {x: 0, y: 0.855, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4373313843617202416}
@@ -388,9 +388,9 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1.23, z: 1}
-  m_Center: {x: 0, y: -0.06, z: 0}
---- !u!114 &1566303823079304451
+  m_Size: {x: 2.33, y: 1.4, z: 2.26}
+  m_Center: {x: 0, y: 0.16, z: 0}
+--- !u!114 &3993199982703414466
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -399,18 +399,16 @@ MonoBehaviour:
   m_GameObject: {fileID: 1216820327904842191}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5de60a848e715f744b396fb966e58a40, type: 3}
+  m_Script: {fileID: 11500000, guid: c471ac846e80dfc4081e91ddcfd73426, type: 3}
   m_Name: 
   m_EditorClassIdentifier: AutomationGame::ItemContainer
-  storageVolume: {fileID: 3357849870752797582}
-  itemTag: Items
-  wallPadding: 0.01
-  itemSpacing: 0
-  capacity: 95
-  allowShrink: 1
-  minimumScale: 0.544
-  snapRotation: 0
-  drawGizmos: 0
+  carrySpace: {fileID: 3357849870752797582}
+  cellSize: {x: 0.86, y: 0.96, z: 0.83}
+  SizeMultiplier: 0.212
+  cellPadding: 0.02
+  logStorageChecks: 1
+  drawGridGizmo: 1
+  maxGizmoCells: 256
 --- !u!1 &2125467803165462215
 GameObject:
   m_ObjectHideFlags: 0
@@ -439,8 +437,8 @@ Transform:
   m_GameObject: {fileID: 2125467803165462215}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -1.2999992, y: 0.85, z: 0}
-  m_LocalScale: {x: 0.2, y: 1.4, z: 2.8}
+  m_LocalPosition: {x: -1.2999992, y: 1, z: 0}
+  m_LocalScale: {x: 0.2, y: 1.45474, z: 2.8}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 9127601296271129881}
@@ -551,8 +549,8 @@ Transform:
   m_GameObject: {fileID: 5847849104381359041}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 1.2999992, y: 0.85, z: 0}
-  m_LocalScale: {x: 0.2, y: 1.4, z: 2.8}
+  m_LocalPosition: {x: 1.2999992, y: 1.0000001, z: 0}
+  m_LocalScale: {x: 0.2, y: 1.45474, z: 2.8}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 9127601296271129881}
@@ -664,7 +662,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -14.08, y: 0.36674, z: -2.04}
-  m_LocalScale: {x: 0.7, y: 0.7, z: 0.7}
+  m_LocalScale: {x: 0.74999994, y: 0.74999994, z: 0.74999994}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 9127601296271129881}
@@ -730,19 +728,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: FPSCore::Carriable
   followGain: 23.7
   maxFollowSpeed: 26.5
-  holdSize: 3
+  holdSize: 2
   rotateGain: 11.78
   maxRotateSpeed: 26
   throwMultiplier: 1
   collisionRestoreDelay: 0.3
   breakGrace: 10
-  overrideHoldRotation: 0
+  overrideHoldRotation: 1
   holdRotation: {x: 0, y: 0, z: 0}
   levelHold: 1
   holdOffset: {x: 0, y: -0.43, z: 0.58}
   keepClearOfCamera: 1
   cameraClearance: 0.32
-  lockToView: 1
+  lockToView: 0
 --- !u!1 &8467968268076434826
 GameObject:
   m_ObjectHideFlags: 0

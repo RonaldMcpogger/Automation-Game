@@ -188,6 +188,11 @@ public class Carriable : MonoBehaviour
     /// <summary>Called by Carrier. False if it can't be carried.</summary>
     public bool Attach(Carrier who)
     {
+        // Stored bodies are kinematic to keep a moving container stable. Restore normal physics
+        // before checking the carry requirements, so stored items remain directly grabbable.
+        for (Transform parent = transform.parent; parent != null; parent = parent.parent)
+            parent.gameObject.SendMessage("ReleaseStoredItem", gameObject, SendMessageOptions.DontRequireReceiver);
+
         if (_attached || who == null || _rb == null || _rb.isKinematic)
             return false;
 
