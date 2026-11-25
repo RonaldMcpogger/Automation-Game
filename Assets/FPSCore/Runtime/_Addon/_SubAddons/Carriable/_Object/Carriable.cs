@@ -190,6 +190,9 @@ public class Carriable : MonoBehaviour
     {
         // Stored bodies are kinematic to keep a moving container stable. Restore normal physics
         // before checking the carry requirements, so stored items remain directly grabbable.
+        // Check the item itself first: ItemContainer keeps stored bodies unparented so they never
+        // become child Rigidbodies of the Carry Box Rigidbody.
+        gameObject.SendMessage("ReleaseStoredItem", gameObject, SendMessageOptions.DontRequireReceiver);
         for (Transform parent = transform.parent; parent != null; parent = parent.parent)
             parent.gameObject.SendMessage("ReleaseStoredItem", gameObject, SendMessageOptions.DontRequireReceiver);
 

@@ -353,7 +353,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &426057205591489846
 Transform:
   m_ObjectHideFlags: 0
@@ -397,14 +397,14 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1216820327904842191}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c471ac846e80dfc4081e91ddcfd73426, type: 3}
   m_Name: 
   m_EditorClassIdentifier: AutomationGame::ItemContainer
   carrySpace: {fileID: 3357849870752797582}
   cellSize: {x: 0.86, y: 0.96, z: 0.83}
-  SizeMultiplier: 0.212
+  sizeMultiplier: 0.212
   cellPadding: 0.02
   logStorageChecks: 1
   drawGridGizmo: 1
@@ -645,6 +645,8 @@ GameObject:
   - component: {fileID: 55175904234933081}
   - component: {fileID: 7790852910105123872}
   - component: {fileID: 898241746202804111}
+  - component: {fileID: 3733623628343468174}
+  - component: {fileID: 1556351593510172044}
   m_Layer: 0
   m_Name: Carry Box
   m_TagString: Untagged
@@ -740,7 +742,47 @@ MonoBehaviour:
   holdOffset: {x: 0, y: -0.43, z: 0.58}
   keepClearOfCamera: 1
   cameraClearance: 0.32
-  lockToView: 0
+  lockToView: 1
+--- !u!65 &3733623628343468174
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7967020918760865270}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 2.32, y: 1.13, z: 2.39}
+  m_Center: {x: 0, y: 1.13, z: 0}
+--- !u!114 &1556351593510172044
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7967020918760865270}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c471ac846e80dfc4081e91ddcfd73426, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: AutomationGame::ItemContainer
+  carrySpace: {fileID: 3733623628343468174}
+  cellSize: {x: 0.56, y: 0.27, z: 0.57}
+  sizeMultiplier: 0.1
+  cellPadding: 0.005
+  logStorageChecks: 1
+  drawGridGizmo: 1
+  maxGizmoCells: 256
 --- !u!1 &8467968268076434826
 GameObject:
   m_ObjectHideFlags: 0

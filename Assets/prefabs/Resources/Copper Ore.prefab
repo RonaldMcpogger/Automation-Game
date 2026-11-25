@@ -185,8 +185,8 @@ MonoBehaviour:
   levelHold: 0
   holdOffset: {x: 0, y: 0, z: 0}
   keepClearOfCamera: 0
-  cameraClearance: 0.05
-  lockToView: 0
+  cameraClearance: 0.31
+  lockToView: 1
 --- !u!114 &5043391145546953224
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -10,5 +10,11 @@ public sealed class StoredItemAnchor : MonoBehaviour
 
     public void Initialize(ItemContainer container) => owner = container;
 
+    public void Clear(ItemContainer container)
+    {
+        if (owner == container)
+            owner = null;
+    }
+
     public void ReleaseStoredItem(GameObject item) => owner?.ReleaseItem(item);
 }

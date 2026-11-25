@@ -33,7 +33,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.25384846, y: 0.16923232, z: 0.36667}
+  m_LocalScale: {x: 0.35, y: 0.23333336, z: 0.50555557}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
@@ -199,5 +199,5 @@ MonoBehaviour:
   levelHold: 0
   holdOffset: {x: 0, y: 0, z: 0}
   keepClearOfCamera: 1
-  cameraClearance: 0.33
-  lockToView: 0
+  cameraClearance: 0.31
+  lockToView: 1
