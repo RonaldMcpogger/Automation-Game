@@ -63,6 +63,8 @@ public class CraftingTab : MonoBehaviour
         var build = user.GetComponent<BuildController>();
         if (build != null) { if (build.IsBuildModeActive) build.SetBuildModeActive(false); build.CloseBuildTab(); }
         Inventory.Instance.SetOpen(false);
+        if (CentralStorageUI.Instance != null && CentralStorageUI.Instance.IsOpen)
+            CentralStorageUI.Instance.Close();
         Close();
         ActiveTable = table;
         player = user;
