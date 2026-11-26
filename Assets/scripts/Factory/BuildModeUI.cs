@@ -346,7 +346,7 @@ public class BuildModeUI : MonoBehaviour
                         $"• Snap: Smelter / Belt\n" +
                         $"[{widthKey}] Width: {widthStr}\n" +
                         $"[{cancelKey}] Cancel\n" +
-                        $"[1-5] or Scroll: Switch\n" +
+                        $"[1-6] Switch Building\n" +
                         $"[{exitKey}] Exit Build Mode";
                 }
                 else
@@ -356,7 +356,7 @@ public class BuildModeUI : MonoBehaviour
                         $"• Snap: Bin / Belt\n" +
                         $"[{widthKey}] Width: {widthStr}\n" +
                         $"[{cancelKey}] Unpin Start\n" +
-                        $"[1-5] Switch Building\n" +
+                        $"[1-6] Switch Building\n" +
                         $"[{exitKey}] Exit Build Mode";
                 }
             }
@@ -364,10 +364,10 @@ public class BuildModeUI : MonoBehaviour
             {
                 promptText.text =
                     $"[{placeKey}] Place Building\n" +
-                    $"[{rotateKey}] Rotate: {(int)rotation}°\n" +
+                    $"[{rotateKey}] / Scroll: Rotate {(int)rotation}°\n" +
                     $"• Auto-connects to nearby\n" +
                     $"  belts automatically\n" +
-                    $"[1-5] or Scroll: Switch\n" +
+                    $"[1-6] Switch Building\n" +
                     $"[{exitKey}] Exit Build Mode";
             }
         }

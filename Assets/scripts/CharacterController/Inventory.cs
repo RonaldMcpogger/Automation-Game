@@ -106,6 +106,9 @@ public class Inventory : MonoBehaviour
                 if (craftingTab != null && craftingTab.IsOpen)
                     craftingTab.Close();
 
+                if (CentralStorageUI.Instance != null && CentralStorageUI.Instance.IsOpen)
+                    CentralStorageUI.Instance.Close();
+
                 var build = GetComponent<BuildController>();
                 if (build != null)
                 {
@@ -187,13 +190,37 @@ public class Inventory : MonoBehaviour
 
     public bool CanAdd(Resource item, int amount = 1)
     {
-        if (item == null || amount <= 0 || TotalCount + (long)amount > itemCapacity) return false;
-        long room = 0;
+        return amount > 0 && GetAvailableRoom(item) >= amount;
+    }
+
+    /// <summary>Returns how many more units of the given resource can currently fit in this inventory.</summary>
+    public int GetAvailableRoom(Resource item)
+    {
+        if (item == null) return 0;
+        long capacityRoom = (long)itemCapacity - TotalCount;
+        if (capacityRoom <= 0) return 0;
+
+        long slotRoom = 0;
         int limit = Mathf.Max(1, item.maxStackSize);
         foreach (var slot in slots)
-            if (slot.item == null) room += limit;
-            else if (slot.item == item) room += Mathf.Max(0, limit - slot.amount);
-        return room >= amount;
+        {
+            if (slot.item == null) slotRoom += limit;
+            else if (slot.item == item) slotRoom += Mathf.Max(0, limit - slot.amount);
+        }
+        return (int)System.Math.Min(capacityRoom, slotRoom);
+    }
+
+    /// <summary>Returns a snapshot of total counts per resource currently held in the inventory.</summary>
+    public Dictionary<Resource, int> GetAllItemCounts()
+    {
+        var totals = new Dictionary<Resource, int>();
+        foreach (var slot in slots)
+        {
+            if (slot.item == null || slot.amount <= 0) continue;
+            totals.TryGetValue(slot.item, out int current);
+            totals[slot.item] = current + slot.amount;
+        }
+        return totals;
     }
 
     private void NotifyChanged(Resource added = null)

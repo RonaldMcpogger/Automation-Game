@@ -217,6 +217,68 @@ public class CentralStorage : ConveyorReceiver
         if (tmpLabel != null) tmpLabel.text = text;
     }
 
+    public int DepositFromInventory(Inventory inventory, Resource res, int requestedAmount)
+    {
+        if (inventory == null || res == null || requestedAmount <= 0)
+            return 0;
+
+        int inInventory = inventory.GetItemCount(res);
+        int freeSpace = Mathf.Max(0, totalCapacity - TotalStoredCount);
+        int toMove = Mathf.Min(requestedAmount, inInventory, freeSpace);
+        if (toMove <= 0)
+            return 0;
+
+        if (!inventory.TryRemove(res, toMove))
+            return 0;
+
+        if (!TryDeposit(res, toMove))
+        {
+            inventory.TryAdd(res, toMove);
+            return 0;
+        }
+
+        return toMove;
+    }
+
+    public int WithdrawToInventory(Inventory inventory, Resource res, int requestedAmount)
+    {
+        if (inventory == null || res == null || requestedAmount <= 0)
+            return 0;
+
+        int inStorage = GetItemCount(res);
+        int roomInBag = inventory.GetAvailableRoom(res);
+        int toMove = Mathf.Min(requestedAmount, inStorage, roomInBag);
+        if (toMove <= 0)
+            return 0;
+
+        if (!TryRemove(res, toMove))
+            return 0;
+
+        if (!inventory.TryAdd(res, toMove))
+        {
+            TryDeposit(res, toMove);
+            return 0;
+        }
+
+        return toMove;
+    }
+
+    public int DepositAllFromInventory(Inventory inventory)
+    {
+        if (inventory == null)
+            return 0;
+
+        int totalMoved = 0;
+        foreach (var kvp in inventory.GetAllItemCounts())
+        {
+            if (TotalStoredCount >= totalCapacity)
+                break;
+
+            totalMoved += DepositFromInventory(inventory, kvp.Key, kvp.Value);
+        }
+        return totalMoved;
+    }
+
     public bool WithdrawToPlayer(FactoryPlayer player)
     {
         if (player == null || Inventory.Instance == null || storedItems.Count == 0)
@@ -318,17 +380,17 @@ public class CentralStorageInteractable : FactoryInteractable
         if (storage == null) return string.Empty;
 
         if (storage.TotalStoredCount <= 0)
-            return "CENTRAL STORAGE | Empty (Drop items into chutes or conveyors)";
+            return $"Press [{{key}}] to open Central Storage (Empty | Cap {storage.totalCapacity})";
 
-        return $"Press [{{key}}] to withdraw materials ({storage.TotalStoredCount} in storage)";
+        return $"Press [{{key}}] to manage Central Storage ({storage.TotalStoredCount} / {storage.totalCapacity})";
     }
 
     public override void Interact(FactoryPlayer player)
     {
         if (storage == null) storage = GetComponent<CentralStorage>();
-        if (storage != null && player != null)
+        if (storage != null)
         {
-            storage.WithdrawToPlayer(player);
+            CentralStorageUI.EnsureInstance().Open(storage, player);
         }
     }
 }

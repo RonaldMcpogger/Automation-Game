@@ -80,6 +80,7 @@ public class BuildController : MonoBehaviour
     public Material greenMaterial;
     public Material redMaterial;
     public Material ghostMaterial;
+    public Material arrowMaterial;
 
     [Header("Prefabs (Optional overrides)")]
     public FactoryItem ingotPrefab;
@@ -119,6 +120,7 @@ public class BuildController : MonoBehaviour
     private GameObject previewSplineObj;
     private SplineContainer previewSplineContainer;
     private Mesh previewSplineMesh;
+    private Mesh previewArrowMesh;
     private GameObject previewBuildingObj;
     private readonly Collider[] placementOverlapResults = new Collider[32];
     [SerializeField]
@@ -411,24 +413,6 @@ public class BuildController : MonoBehaviour
             if (Keyboard.current.digit5Key.wasPressedThisFrame) { SetSelectedType(BuildableType.Presser); return; }
             if (Keyboard.current.digit6Key.wasPressedThisFrame) { SetSelectedType(BuildableType.Drill); return; }
         }
-
-        float scroll = 0f;
-        if (buildScrollAction != null)
-            scroll = buildScrollAction.ReadValue<Vector2>().y;
-        else if (Mouse.current != null)
-            scroll = Mouse.current.scroll.ReadValue().y;
-
-        if (buildableFactories == null || buildableFactories.Length == 0)
-            return;
-
-        if (scroll > 0.1f)
-        {
-            SelectCatalogIndex((GetCatalogIndex() - 1 + buildableFactories.Length) % buildableFactories.Length);
-        }
-        else if (scroll < -0.1f)
-        {
-            SelectCatalogIndex((GetCatalogIndex() + 1) % buildableFactories.Length);
-        }
     }
 
     /// <summary>
@@ -582,6 +566,13 @@ public class BuildController : MonoBehaviour
             buildTabCatalog.SetDefinitions(buildableFactories);
     }
 
+    public void RotateBuilding(float angleDelta = 90f)
+    {
+        BuildingRotation = (BuildingRotation + angleDelta) % 360f;
+        if (BuildingRotation < 0f)
+            BuildingRotation += 360f;
+    }
+
     private void HandleRotationInput()
     {
         bool rotatePressed = false;
@@ -590,9 +581,19 @@ public class BuildController : MonoBehaviour
         else if (Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame)
             rotatePressed = true;
 
-        if (rotatePressed)
+        float scroll = 0f;
+        if (buildScrollAction != null)
+            scroll = buildScrollAction.ReadValue<Vector2>().y;
+        else if (Mouse.current != null)
+            scroll = Mouse.current.scroll.ReadValue().y;
+
+        if (rotatePressed || scroll > 0.1f)
         {
-            BuildingRotation = (BuildingRotation + 90f) % 360f;
+            RotateBuilding(90f);
+        }
+        else if (scroll < -0.1f)
+        {
+            RotateBuilding(-90f);
         }
     }
 
@@ -1215,6 +1216,8 @@ public class BuildController : MonoBehaviour
             previewBuildingObj.transform.localScale = new Vector3(2f, 2.4f, 2f);
         else if (SelectedType == BuildableType.Drill)
             previewBuildingObj.transform.localScale = new Vector3(2f, 2.2f, 2f);
+        else
+            previewBuildingObj.transform.localScale = new Vector3(2f, 2f, 2f);
     }
 
     private void UpdateUI()
@@ -1882,10 +1885,102 @@ public class BuildController : MonoBehaviour
         previewBuildingObj.transform.SetParent(previewRoot.transform, false);
         Destroy(previewBuildingObj.GetComponent<Collider>());
         previewBuildingObj.GetComponent<Renderer>().sharedMaterial = ghostMaterial;
+
+        // Orientation Arrow on top of preview building (+Z direction)
+        var arrowObj = new GameObject("OrientationArrow");
+        arrowObj.transform.SetParent(previewBuildingObj.transform, false);
+        arrowObj.transform.localPosition = new Vector3(0f, 0.51f, 0.05f);
+        arrowObj.transform.localRotation = Quaternion.identity;
+        var arrowFilter = arrowObj.AddComponent<MeshFilter>();
+        arrowFilter.sharedMesh = CreateArrowMesh();
+        var arrowRenderer = arrowObj.AddComponent<MeshRenderer>();
+        arrowRenderer.sharedMaterial = arrowMaterial != null ? arrowMaterial : (yellowMaterial ?? ghostMaterial);
+
+        // Orientation Front Light / marker on the front face (+Z)
+        var frontLightObj = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        frontLightObj.name = "OrientationFrontLight";
+        frontLightObj.transform.SetParent(previewBuildingObj.transform, false);
+        Destroy(frontLightObj.GetComponent<Collider>());
+        frontLightObj.transform.localPosition = new Vector3(0f, 0.25f, 0.51f);
+        frontLightObj.transform.localScale = new Vector3(0.4f, 0.15f, 0.04f);
+        frontLightObj.transform.localRotation = Quaternion.identity;
+        frontLightObj.GetComponent<Renderer>().sharedMaterial = arrowMaterial != null ? arrowMaterial : (yellowMaterial ?? ghostMaterial);
+
         SetLayerRecursively(previewBuildingObj, 2);
 
         UpdatePreviewMesh();
         previewRoot.SetActive(false);
+    }
+
+    private Mesh CreateArrowMesh()
+    {
+        if (previewArrowMesh != null)
+            return previewArrowMesh;
+
+        previewArrowMesh = new Mesh { name = "Orientation Arrow Mesh" };
+        previewArrowMesh.hideFlags = HideFlags.DontSave;
+
+        // 7 perimeter points in local XZ plane:
+        // P0: Forward Tip (+Z)
+        // P1: Right Wing
+        // P2: Right Neck
+        // P3: Right Base
+        // P4: Left Base
+        // P5: Left Neck
+        // P6: Left Wing
+        Vector2[] contour = new Vector2[]
+        {
+            new Vector2(0f, 0.55f),
+            new Vector2(0.35f, 0.15f),
+            new Vector2(0.12f, 0.15f),
+            new Vector2(0.12f, -0.35f),
+            new Vector2(-0.12f, -0.35f),
+            new Vector2(-0.12f, 0.15f),
+            new Vector2(-0.35f, 0.15f)
+        };
+
+        float halfThick = 0.025f;
+        Vector3[] vertices = new Vector3[14];
+        for (int i = 0; i < 7; i++)
+        {
+            vertices[i] = new Vector3(contour[i].x, halfThick, contour[i].y);
+            vertices[i + 7] = new Vector3(contour[i].x, -halfThick, contour[i].y);
+        }
+
+        int[] triangles = new int[]
+        {
+            // Top face (normal pointing +Y)
+            0, 1, 6,
+            5, 2, 3,
+            5, 3, 4,
+
+            // Bottom face (normal pointing -Y)
+            7, 13, 8,
+            12, 10, 9,
+            12, 11, 10,
+
+            // 7 Side walls (outward normals)
+            // Edge 0: 0 -> 1
+            0, 8, 1,   0, 7, 8,
+            // Edge 1: 1 -> 2
+            1, 9, 2,   1, 8, 9,
+            // Edge 2: 2 -> 3
+            2, 10, 3,  2, 9, 10,
+            // Edge 3: 3 -> 4
+            3, 11, 4,  3, 10, 11,
+            // Edge 4: 4 -> 5
+            4, 12, 5,  4, 11, 12,
+            // Edge 5: 5 -> 6
+            5, 13, 6,  5, 12, 13,
+            // Edge 6: 6 -> 0
+            6, 7, 0,   6, 13, 7
+        };
+
+        previewArrowMesh.vertices = vertices;
+        previewArrowMesh.triangles = triangles;
+        previewArrowMesh.RecalculateNormals();
+        previewArrowMesh.RecalculateBounds();
+        return previewArrowMesh;
     }
 
     private static void SetLayerRecursively(GameObject obj, int layer)
@@ -1986,6 +2081,26 @@ public class BuildController : MonoBehaviour
                     };
                 }
             }
+
+            if (arrowMaterial == null)
+            {
+                var unlitShader = Shader.Find("Universal Render Pipeline/Unlit")
+                    ?? Shader.Find("Unlit/Color")
+                    ?? litShader;
+
+                if (unlitShader != null)
+                {
+                    arrowMaterial = new Material(unlitShader)
+                    {
+                        name = "BuildArrow_Runtime",
+                        color = new Color(1f, 0.88f, 0.2f, 0.95f)
+                    };
+                }
+                else if (yellowMaterial != null)
+                {
+                    arrowMaterial = yellowMaterial;
+                }
+            }
         }
         catch (System.Exception ex)
         {
@@ -2005,6 +2120,10 @@ public class BuildController : MonoBehaviour
     {
         if (previewRoot != null)
             Destroy(previewRoot);
+        if (previewSplineMesh != null)
+            Destroy(previewSplineMesh);
+        if (previewArrowMesh != null)
+            Destroy(previewArrowMesh);
     }
 
     #endregion

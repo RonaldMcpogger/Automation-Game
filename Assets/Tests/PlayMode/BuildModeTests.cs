@@ -243,4 +243,60 @@ public class BuildModeTests
 
         yield return null;
     }
+
+    [UnityTest]
+    public IEnumerator BuildingRotationCanBeRotatedClockwiseAndCounterClockwise()
+    {
+        buildController.SetBuildModeActive(true);
+        Assert.That(buildController.BuildingRotation, Is.EqualTo(0f));
+
+        buildController.RotateBuilding(90f);
+        Assert.That(buildController.BuildingRotation, Is.EqualTo(90f));
+
+        buildController.RotateBuilding(90f);
+        Assert.That(buildController.BuildingRotation, Is.EqualTo(180f));
+
+        buildController.RotateBuilding(90f);
+        Assert.That(buildController.BuildingRotation, Is.EqualTo(270f));
+
+        buildController.RotateBuilding(90f);
+        Assert.That(buildController.BuildingRotation, Is.EqualTo(0f));
+
+        buildController.RotateBuilding(-90f);
+        Assert.That(buildController.BuildingRotation, Is.EqualTo(270f));
+
+        buildController.RotateBuilding(-90f);
+        Assert.That(buildController.BuildingRotation, Is.EqualTo(180f));
+
+        buildController.SetBuildModeActive(false);
+        yield return null;
+    }
+
+    [UnityTest]
+    public IEnumerator PreviewBuildingHasOrientationIndicators()
+    {
+        buildController.SetBuildModeActive(true);
+        buildController.SetSelectedType(BuildableType.Smelter);
+
+        // Force preview creation and update
+        typeof(BuildController).GetMethod("CreatePreviewObjects", System.Reflection.BindingFlags.Instance
+            | System.Reflection.BindingFlags.NonPublic).Invoke(buildController, null);
+
+        var previewRoot = (GameObject)typeof(BuildController).GetField("previewRoot",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(buildController);
+        Assert.That(previewRoot, Is.Not.Null, "previewRoot should be instantiated.");
+
+        var previewBuilding = previewRoot.transform.Find("BuildingPreview");
+        Assert.That(previewBuilding, Is.Not.Null, "BuildingPreview should exist under previewRoot.");
+
+        var arrow = previewBuilding.Find("OrientationArrow");
+        Assert.That(arrow, Is.Not.Null, "OrientationArrow should exist under BuildingPreview.");
+        Assert.That(arrow.GetComponent<MeshFilter>().sharedMesh, Is.Not.Null, "OrientationArrow should have a generated arrow mesh.");
+
+        var frontLight = previewBuilding.Find("OrientationFrontLight");
+        Assert.That(frontLight, Is.Not.Null, "OrientationFrontLight should exist under BuildingPreview.");
+
+        buildController.SetBuildModeActive(false);
+        yield return null;
+    }
 }
