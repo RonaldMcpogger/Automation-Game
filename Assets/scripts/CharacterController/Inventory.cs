@@ -190,7 +190,7 @@ public class Inventory : MonoBehaviour
 
     public bool CanAdd(Resource item, int amount = 1)
     {
-        return amount > 0 && GetAvailableRoom(item) >= amount;
+        return amount > 0;
     }
 
     /// <summary>Returns how many more units of the given resource can currently fit in this inventory.</summary>

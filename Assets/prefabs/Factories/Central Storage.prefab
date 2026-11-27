@@ -322,8 +322,8 @@ TextMesh:
 
     (Storage Empty)
 
-    Conveyors & Chutes
-    feed here'
+    Conveyors & Chutes feed
+    here'
   m_OffsetZ: 0
   m_CharacterSize: 0.08
   m_LineSpacing: 1
@@ -624,7 +624,6 @@ GameObject:
   m_Component:
   - component: {fileID: 797743905519651182}
   - component: {fileID: 4765139853233069680}
-  - component: {fileID: 4266388227656585036}
   m_Layer: 0
   m_Name: Central Storage
   m_TagString: Untagged
@@ -669,16 +668,3 @@ MonoBehaviour:
   totalCapacity: 9999
   counterLabel: {fileID: 7700410282555639322}
   tmpLabel: {fileID: 0}
---- !u!114 &4266388227656585036
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8001319320146674221}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 0}
-  m_Name: 
-  m_EditorClassIdentifier: AutomationGame::CentralStorageInteractable
-  storage: {fileID: 4765139853233069680}

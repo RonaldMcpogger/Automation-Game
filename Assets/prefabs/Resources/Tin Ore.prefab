@@ -182,10 +182,10 @@ MonoBehaviour:
   breakGrace: 1
   overrideHoldRotation: 0
   holdRotation: {x: 0, y: 0, z: 0}
-  levelHold: 0
-  holdOffset: {x: 0, y: 0, z: 0}
+  levelHold: 1
+  holdOffset: {x: 0.56, y: -0.43, z: 0}
   keepClearOfCamera: 0
-  cameraClearance: 0.31
+  cameraClearance: 0.57
   lockToView: 1
 --- !u!114 &16625732117447068
 MonoBehaviour:

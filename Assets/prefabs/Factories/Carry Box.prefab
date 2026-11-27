@@ -739,9 +739,9 @@ MonoBehaviour:
   overrideHoldRotation: 1
   holdRotation: {x: 0, y: 0, z: 0}
   levelHold: 1
-  holdOffset: {x: 0, y: -0.43, z: 0.58}
+  holdOffset: {x: 0, y: -0.79, z: 1}
   keepClearOfCamera: 1
-  cameraClearance: 0.32
+  cameraClearance: 0.41
   lockToView: 1
 --- !u!65 &3733623628343468174
 BoxCollider:
@@ -762,8 +762,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 2.32, y: 1.13, z: 2.39}
-  m_Center: {x: 0, y: 1.13, z: 0}
+  m_Size: {x: 2.32, y: 1.45, z: 2.39}
+  m_Center: {x: 0, y: 1.04, z: 0}
 --- !u!114 &1556351593510172044
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -777,9 +777,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: AutomationGame::ItemContainer
   carrySpace: {fileID: 3733623628343468174}
-  cellSize: {x: 0.56, y: 0.27, z: 0.57}
-  sizeMultiplier: 0.1
-  cellPadding: 0.005
+  cellSize: {x: 0.56, y: 0.53, z: 0.57}
+  sizeMultiplier: 0.112
+  cellPadding: 0.009
   logStorageChecks: 1
   drawGridGizmo: 1
   maxGizmoCells: 256

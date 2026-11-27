@@ -9,6 +9,20 @@ using UnityEngine.Serialization;
 /// rigidbodies have ambiguous physics ownership and cause the clipping/launch bugs this component
 /// is designed to prevent. Instead, each stored body is kinematic and follows a cached carry-space
 /// pose during the physics step.
+///
+/// Storage lifecycle:
+/// 1. An Items-tagged collider enters CarrySpace and calls TryStoreColliderItem.
+/// 2. The component verifies that the item is not held, has a root Rigidbody, has a free cell,
+///    and can fit after a uniform scale reduction.
+/// 3. StoreItem saves the item's original transform/physics settings, resets its rotation to
+///    world (0, 0, 0), makes the body kinematic, and ignores contacts with the Carry Box only.
+/// 4. ArrangeStoredItems assigns a grid cell, calculates the item's one-time fit scale, centres
+///    its collider in that cell, and caches the final pose relative to the carry area.
+/// 5. FixedUpdate and LateUpdate rebuild each cached pose from the moving carry area so contents
+///    move and rotate with the Carry Box without becoming Rigidbody children of it.
+/// 6. When Carriable grabs an item, StoredItemAnchor calls ReleaseItem. The original scale and
+///    Rigidbody settings are restored, the item is removed from the grid, and remaining contents
+///    are repositioned without being rescaled.
 /// </summary>
 [RequireComponent(typeof(BoxCollider))]
 public class ItemContainer : MonoBehaviour
@@ -41,6 +55,7 @@ public class ItemContainer : MonoBehaviour
     private readonly List<GameObject> storedOrder = new();
     private Collider[] containerColliders;
 
+    /// <summary>All state needed to restore one item exactly after it leaves this container.</summary>
     private sealed class StoredItem
     {
         public Transform originalParent;
@@ -53,10 +68,15 @@ public class ItemContainer : MonoBehaviour
         public CollisionDetectionMode collisionDetection;
         public Collider[] colliders;
         public Vector3 originalLocalScale;
+        public Vector3 originalPosition;
+        public Quaternion originalRotation;
+        public float storedScale;
         public Vector3 carryLocalPosition;
         public Quaternion carryLocalRotation;
+        public bool hasStoredPose;
     }
 
+    /// <summary>Initialises the trigger volume and caches every physical collider belonging to the box.</summary>
     private void Awake()
     {
         carrySpace ??= GetComponent<BoxCollider>();
@@ -70,6 +90,7 @@ public class ItemContainer : MonoBehaviour
             : transform.root.GetComponentsInChildren<Collider>(true);
     }
 
+    /// <summary>Releases every item if this component or its Carry Box is disabled/destroyed.</summary>
     private void OnDisable()
     {
         // Never leave invisible kinematic items behind when a box is disabled or destroyed.
@@ -78,6 +99,7 @@ public class ItemContainer : MonoBehaviour
             ReleaseItemInternal(item, false);
     }
 
+    /// <summary>Updates stored Rigidbody poses before the next physics simulation step.</summary>
     private void FixedUpdate()
     {
         RemoveDestroyedItems();
@@ -86,6 +108,7 @@ public class ItemContainer : MonoBehaviour
                 SyncStoredPose(state, false);
     }
 
+    /// <summary>Applies one final pose update after normal frame movement to remove visible carry lag.</summary>
     private void LateUpdate()
     {
         // Carriable moves its Rigidbody after some FixedUpdate callbacks. A final direct pose
@@ -95,11 +118,14 @@ public class ItemContainer : MonoBehaviour
                 SyncStoredPose(state, true);
     }
 
+    /// <summary>Starts storage validation when a collider first enters the carry-area trigger.</summary>
     private void OnTriggerEnter(Collider other) => TryStoreColliderItem(other, true);
 
+    /// <summary>Retries validation while an item settles through the carry-area trigger.</summary>
     // A valid item can first touch the rim before it settles inside the trigger.
     private void OnTriggerStay(Collider other) => TryStoreColliderItem(other, false);
 
+    /// <summary>Resolves an entered collider to its Items-tagged root and performs all safe-to-store checks.</summary>
     private void TryStoreColliderItem(Collider other, bool logResult)
     {
         GameObject item = FindTaggedItemRoot(other);
@@ -132,12 +158,14 @@ public class ItemContainer : MonoBehaviour
             Debug.Log($"{name}: stored {item.name}.", this);
     }
 
+    /// <summary>Prevents a held or externally claimed resource from being re-stored by this trigger.</summary>
     private static bool IsBeingHeld(GameObject item)
     {
         Carriable carriable = item.GetComponent<Carriable>();
         return carriable != null && (carriable.IsHeld || carriable.IsClaimed);
     }
 
+    /// <summary>Walks upward from a hit collider and returns the first parent tagged <c>Items</c>.</summary>
     private static GameObject FindTaggedItemRoot(Collider other)
     {
         if (other == null)
@@ -152,6 +180,7 @@ public class ItemContainer : MonoBehaviour
     /// <summary>Returns true when this container has locked the supplied item.</summary>
     public bool Contains(GameObject item) => item != null && storedItems.ContainsKey(item);
 
+    /// <summary>Saves original state, applies stable stored physics, and assigns the item its first grid cell.</summary>
     private void StoreItem(GameObject item, Rigidbody body)
     {
         var state = new StoredItem
@@ -166,6 +195,8 @@ public class ItemContainer : MonoBehaviour
             collisionDetection = body.collisionDetectionMode,
             colliders = item.GetComponentsInChildren<Collider>(),
             originalLocalScale = item.transform.localScale,
+            originalPosition = body.position,
+            originalRotation = body.rotation,
         };
 
         // Carriable uses this hook to release a directly grabbed stored item without creating an
@@ -185,6 +216,9 @@ public class ItemContainer : MonoBehaviour
         body.constraints = state.constraints;
         body.interpolation = RigidbodyInterpolation.None;
         body.collisionDetectionMode = CollisionDetectionMode.Discrete;
+        // All resources begin aligned in the carry cells. The cached local rotation below then
+        // makes them rotate with the Carry Box after they have been stored.
+        body.rotation = Quaternion.identity;
         IgnoreContainerCollisions(state.colliders, true);
 
         storedItems.Add(item, state);
@@ -198,16 +232,24 @@ public class ItemContainer : MonoBehaviour
     /// <summary>Restores one stored item's transform scale and original Rigidbody settings.</summary>
     public bool ReleaseItem(GameObject item) => ReleaseItemInternal(item, true);
 
-    // Kept for existing SendMessage callers and StoredItemAnchor.
+    /// <summary>Message entry point used by StoredItemAnchor and legacy SendMessage callers.</summary>
     public void ReleaseStoredItem(GameObject item) => ReleaseItem(item);
 
+    /// <summary>Restores one item and optionally compacts the remaining grid cells.</summary>
     private bool ReleaseItemInternal(GameObject item, bool relayoutRemainingItems)
     {
         if (item == null || !storedItems.TryGetValue(item, out StoredItem state))
             return false;
 
         // A grab may happen between FixedUpdate calls, so release at the exact current box pose.
-        SyncStoredPose(state, true);
+        // If packing failed before a pose was assigned, put the item back where it entered.
+        if (state.hasStoredPose)
+            SyncStoredPose(state, true);
+        else if (state.body != null)
+        {
+            state.body.position = state.originalPosition;
+            state.body.rotation = state.originalRotation;
+        }
         if (item.transform.parent != state.originalParent)
             item.transform.SetParent(state.originalParent, true);
         item.transform.localScale = state.originalLocalScale;
@@ -236,6 +278,10 @@ public class ItemContainer : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Converts a cached carry-local pose into world space and writes it to the stored Rigidbody.
+    /// Both paths use direct writes so Rigidbody constraints cannot leave an item behind.
+    /// </summary>
     private void SyncStoredPose(StoredItem state, bool immediate)
     {
         if (state.body == null || carrySpace == null)
@@ -257,7 +303,10 @@ public class ItemContainer : MonoBehaviour
         }
     }
 
-    /// <summary>Places each item in a cell and caches its pose in carry-space coordinates.</summary>
+    /// <summary>
+    /// Places every stored item in X, then Z, then Y order and caches each pose in carry-space
+    /// coordinates. An item's scale is calculated only the first time it is stored.
+    /// </summary>
     private bool ArrangeStoredItems()
     {
         if (carrySpace == null)
@@ -279,13 +328,17 @@ public class ItemContainer : MonoBehaviour
             if (item == null || !storedItems.TryGetValue(item, out StoredItem state) || state.body == null)
                 return false;
 
-            // Reset before measuring so repeated layouts never compound the scale.
-            item.transform.localScale = state.originalLocalScale;
-            Bounds originalBounds = GetItemBounds(item.GetComponentsInChildren<Collider>());
-            float scale = GetFittingScale(originalBounds.size, interior);
-            if (scale < sizeMultiplier)
-                return false;
-            item.transform.localScale = state.originalLocalScale * scale;
+            // Determine a single scalar once, on first storage. Later grid layouts only move the
+            // item; they never resize existing contents when a different item is added.
+            if (state.storedScale <= 0f)
+            {
+                item.transform.localScale = state.originalLocalScale;
+                Bounds originalBounds = GetItemBounds(item.GetComponentsInChildren<Collider>());
+                state.storedScale = GetFittingScale(originalBounds.size, interior);
+                if (state.storedScale < sizeMultiplier)
+                    return false;
+            }
+            item.transform.localScale = state.originalLocalScale * state.storedScale;
 
             int x = index % xCount;
             int z = (index / xCount) % zCount;
@@ -302,10 +355,12 @@ public class ItemContainer : MonoBehaviour
             state.body.position += cellCenter - scaledBounds.center;
             state.carryLocalPosition = carrySpace.transform.InverseTransformPoint(state.body.position);
             state.carryLocalRotation = Quaternion.Inverse(carrySpace.transform.rotation) * state.body.rotation;
+            state.hasStoredPose = true;
         }
         return true;
     }
 
+    /// <summary>Checks capacity and verifies that an item can fit a padded cell above the scale limit.</summary>
     private bool CanFitCell(GameObject item)
     {
         if (item == null || carrySpace == null)
@@ -322,8 +377,10 @@ public class ItemContainer : MonoBehaviour
         return GetFittingScale(itemBounds.size, interior) >= sizeMultiplier;
     }
 
-    // cellSize is configured in world units. Convert it to the BoxCollider's local axes so the
-    // layout remains inside the actual oriented box even when a thrown Carry Box is rotating.
+    /// <summary>
+    /// Converts world-space cell dimensions to the carry collider's local axes and counts complete
+    /// cells. This keeps the grid valid when the Carry Box is scaled or rotating after a throw.
+    /// </summary>
     private bool TryGetGrid(out Vector3 localCellSize, out int xCount, out int yCount, out int zCount)
     {
         Vector3 scale = carrySpace.transform.lossyScale;
@@ -345,6 +402,7 @@ public class ItemContainer : MonoBehaviour
         return xCount > 0 && yCount > 0 && zCount > 0;
     }
 
+    /// <summary>Returns the largest uniform scale from 0 to 1 that fits an item's bounds into a cell.</summary>
     private static float GetFittingScale(Vector3 size, Vector3 available)
     {
         if (size.x <= 0f || size.y <= 0f || size.z <= 0f)
@@ -352,6 +410,7 @@ public class ItemContainer : MonoBehaviour
         return Mathf.Min(1f, available.x / size.x, available.y / size.y, available.z / size.z);
     }
 
+    /// <summary>Combines enabled solid colliders into one world-space box used for sizing and centring.</summary>
     private static Bounds GetItemBounds(Collider[] colliders)
     {
         bool hasBounds = false;
@@ -373,6 +432,7 @@ public class ItemContainer : MonoBehaviour
         return bounds;
     }
 
+    /// <summary>Enables/disables contacts with the Carry Box only; item colliders remain raycastable.</summary>
     private void IgnoreContainerCollisions(Collider[] itemColliders, bool ignore)
     {
         if (itemColliders == null || containerColliders == null)
@@ -384,6 +444,7 @@ public class ItemContainer : MonoBehaviour
                     Physics.IgnoreCollision(itemCollider, containerCollider, ignore);
     }
 
+    /// <summary>Removes destroyed Unity objects from bookkeeping before their poses are updated.</summary>
     private void RemoveDestroyedItems()
     {
         var destroyedItems = new List<GameObject>();
@@ -402,6 +463,7 @@ public class ItemContainer : MonoBehaviour
         }
     }
 
+    /// <summary>Clamps Inspector values and makes sure the chosen carry-space collider is a trigger.</summary>
     private void OnValidate()
     {
         carrySpace ??= GetComponent<BoxCollider>();
@@ -414,6 +476,7 @@ public class ItemContainer : MonoBehaviour
         maxGizmoCells = Mathf.Max(1, maxGizmoCells);
     }
 
+    /// <summary>Draws the oriented carry volume and padded grid cells in the Scene view.</summary>
     private void OnDrawGizmosSelected()
     {
         if (!drawGridGizmo)

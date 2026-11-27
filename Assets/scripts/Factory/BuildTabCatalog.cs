@@ -2,6 +2,7 @@ using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
@@ -36,6 +37,27 @@ public class BuildTabCatalog : MonoBehaviour
     private readonly Color hoverColor = new(0.18f, 0.45f, 0.7f, 0.95f);
 
     public bool IsVisible => canvasGroup != null && canvasGroup.alpha > 0.01f;
+
+    /// <summary>
+    /// Public UI-button entry point for closing the catalog.
+    /// BuildController owns the UI input lock when it opens this tab, so it must perform the
+    /// close whenever available; removing this catalog as the owner would leave that lock active.
+    /// </summary>
+    public void Close()
+    {
+        BuildController builder = FindAnyObjectByType<BuildController>();
+        if (builder != null)
+        {
+            builder.CloseBuildTab();
+            return;
+        }
+
+        // Fallback for a catalog used without BuildController, such as an isolated UI test.
+        SetVisible(false);
+        InputManager.Instance?.ExitUIMode(this);
+    }
+
+  
 
     public void BindCallbacks(Action<int> selectedCallback, Action buildRequestedCallback)
     {

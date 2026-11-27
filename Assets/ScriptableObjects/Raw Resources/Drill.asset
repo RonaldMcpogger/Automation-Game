@@ -15,4 +15,4 @@ MonoBehaviour:
   objModel: {fileID: 4039369816461724893, guid: 73c370dfe11d9934abf7c26f9ed0336a, type: 3}
   itemName: Drill
   ItemImage: {fileID: 0}
-  maxStackSize: 20
+  maxStackSize: 5

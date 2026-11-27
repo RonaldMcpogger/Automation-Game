@@ -22,9 +22,12 @@ MonoBehaviour:
   inputItem: {fileID: 0}
   outputItem: {fileID: 0}
   ValidCraftables: []
+  inputSlotCount: 1
+  outputSlotCount: 1
   inputPerCycle: 1
   outputPerCycle: 1
   inputCapacity: 10
+  outputCapacity: 10
   processingSeconds: 2
   icon: {fileID: 0}
   freeToBuild: 1

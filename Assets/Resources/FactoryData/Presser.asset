@@ -22,11 +22,14 @@ MonoBehaviour:
   inputItem: {fileID: 11400000, guid: a958f79a8f3568f4d82b7ab04330c143, type: 2}
   outputItem: {fileID: 11400000, guid: 11531c87ba2203b4ba752e4aa3281860, type: 2}
   ValidCraftables: []
+  inputSlotCount: 1
+  outputSlotCount: 1
   inputPerCycle: 1
   outputPerCycle: 1
   inputCapacity: 10
+  outputCapacity: 10
   processingSeconds: 1.5
   icon: {fileID: 0}
-  freeToBuild: 1
+  freeToBuild: 0
   buildCostItem: {fileID: 11400000, guid: e0110004000000000000000000000004, type: 2}
   buildCostAmount: 1
