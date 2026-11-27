@@ -242,9 +242,16 @@ public class BuildTabCatalog : MonoBehaviour
         TextMeshProUGUI label = entry.GetComponentInChildren<TextMeshProUGUI>(true);
         if (label != null)
         {
-            int count = Inventory.Instance != null && definition != null && definition.BuildCostResource != null
-                ? Inventory.Instance.GetItemCount(definition.BuildCostResource) : 0;
-            label.text = $"{definition.DisplayName}\n<size=75%><color=#D0D0D0>({count} in inventory)</color></size>";
+            if (definition != null && !definition.HasBuildCost)
+            {
+                label.text = $"{definition.DisplayName}\n<size=75%><color=#77DD77>(Free to build)</color></size>";
+            }
+            else
+            {
+                int count = Inventory.Instance != null && definition != null && definition.BuildCostResource != null
+                    ? Inventory.Instance.GetItemCount(definition.BuildCostResource) : 0;
+                label.text = $"{definition.DisplayName}\n<size=75%><color=#D0D0D0>({count} in inventory)</color></size>";
+            }
         }
     }
 
@@ -271,10 +278,17 @@ public class BuildTabCatalog : MonoBehaviour
 
         if (FactoryNameDisplay != null)
         {
-            int current = Inventory.Instance != null && definition != null && definition.BuildCostResource != null
-                ? Inventory.Instance.GetItemCount(definition.BuildCostResource) : 0;
-            string countColor = canAfford ? "#77DD77" : "#FF6666";
-            FactoryNameDisplay.text = $"{definition.DisplayName}\n<size=65%><color={countColor}>In Inventory: {current}</color></size>";
+            if (definition != null && !definition.HasBuildCost)
+            {
+                FactoryNameDisplay.text = $"{definition.DisplayName}\n<size=65%><color=#77DD77>Free</color></size>";
+            }
+            else
+            {
+                int current = Inventory.Instance != null && definition != null && definition.BuildCostResource != null
+                    ? Inventory.Instance.GetItemCount(definition.BuildCostResource) : 0;
+                string countColor = canAfford ? "#77DD77" : "#FF6666";
+                FactoryNameDisplay.text = $"{definition.DisplayName}\n<size=65%><color={countColor}>In Inventory: {current}</color></size>";
+            }
         }
         onSelected?.Invoke(index);
     }

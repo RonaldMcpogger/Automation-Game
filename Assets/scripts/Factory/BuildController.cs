@@ -130,7 +130,7 @@ public class BuildController : MonoBehaviour
     public FactoryData SelectedFactoryData => selectedFactoryData;
 
     [Header("Crafting Costs")]
-    [Tooltip("When enabled, placing structures consumes required resources from the player's pouch.")]
+    [Tooltip("When enabled, placing structures consumes the crafted structure item from the player's pouch.")]
     public bool enforceBuildCosts = true;
 
     public bool CanAfford(BuildableType type, out string message)
@@ -165,25 +165,11 @@ public class BuildController : MonoBehaviour
             return true;
 
         int playerHas = inventory.GetItemCount(costItem);
-        int centralHas = CentralStorage.Instance != null ? CentralStorage.Instance.GetItemCount(costItem) : 0;
-        int totalHas = playerHas + centralHas;
-
-        if (totalHas < costAmount)
+        if (playerHas < costAmount)
         {
-            // Backward compatibility fallback for tests checking raw ore/ingots
-            Resource rawItem = data.FallbackCostItem;
-            int rawAmount = data.FallbackCostQty;
-            int playerRaw = rawItem != null ? inventory.GetItemCount(rawItem) : 0;
-            int centralRaw = (rawItem != null && CentralStorage.Instance != null) ? CentralStorage.Instance.GetItemCount(rawItem) : 0;
-            int totalRaw = playerRaw + centralRaw;
-
-            if (rawItem != null && rawAmount > 0 && totalRaw >= rawAmount)
-                return true;
-
-            int current = totalHas;
-            message = current == 0
-                ? $"None in inventory (Craft at Table)"
-                : $"Requires {costAmount}x {costItem.DisplayName} (Available: {current})";
+            message = playerHas == 0
+                ? $"Requires {costAmount}x {costItem.DisplayName} in inventory (Craft at Table)"
+                : $"Requires {costAmount}x {costItem.DisplayName} (In inventory: {playerHas})";
             return false;
         }
 
@@ -213,39 +199,8 @@ public class BuildController : MonoBehaviour
         Resource costItem = data.BuildCostResource;
         int costAmount = data.BuildCostQty;
 
-        if (costAmount > 0 && costItem != null)
-        {
-            int playerHas = inventory.GetItemCount(costItem);
-            int centralHas = CentralStorage.Instance != null ? CentralStorage.Instance.GetItemCount(costItem) : 0;
-            if (playerHas + centralHas >= costAmount)
-            {
-                int fromPlayer = Mathf.Min(playerHas, costAmount);
-                if (fromPlayer > 0)
-                    inventory.TryRemove(costItem, fromPlayer);
-                int remainder = costAmount - fromPlayer;
-                if (remainder > 0 && CentralStorage.Instance != null)
-                    CentralStorage.Instance.TryRemove(costItem, remainder);
-                return;
-            }
-        }
-
-        // Backward compatibility fallback: deduct raw ingredients if player doesn't have machine item
-        Resource rawItem = data.FallbackCostItem;
-        int rawAmount = data.FallbackCostQty;
-        if (rawAmount > 0 && rawItem != null)
-        {
-            int playerRaw = inventory.GetItemCount(rawItem);
-            int centralRaw = CentralStorage.Instance != null ? CentralStorage.Instance.GetItemCount(rawItem) : 0;
-            if (playerRaw + centralRaw >= rawAmount)
-            {
-                int fromPlayerRaw = Mathf.Min(playerRaw, rawAmount);
-                if (fromPlayerRaw > 0)
-                    inventory.TryRemove(rawItem, fromPlayerRaw);
-                int remainderRaw = rawAmount - fromPlayerRaw;
-                if (remainderRaw > 0 && CentralStorage.Instance != null)
-                    CentralStorage.Instance.TryRemove(rawItem, remainderRaw);
-            }
-        }
+        if (costAmount > 0 && costItem != null && inventory.HasItem(costItem, costAmount))
+            inventory.TryRemove(costItem, costAmount);
     }
 
     // FPSCore InputManager Actions

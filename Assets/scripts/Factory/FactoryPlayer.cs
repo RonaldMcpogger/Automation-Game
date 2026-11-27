@@ -261,17 +261,17 @@ public class FactoryPlayer : MonoBehaviour
             {
                 var data = build.SelectedFactoryData;
                 bool canAfford = build.CanAfford(build.SelectedType, out string affordMsg);
-                int count = data != null && data.BuildCostResource != null
-                    ? (Inventory.Instance != null ? Inventory.Instance.GetItemCount(data.BuildCostResource) : 0)
-                      + (CentralStorage.Instance != null ? CentralStorage.Instance.GetItemCount(data.BuildCostResource) : 0)
+                int count = data != null && data.HasBuildCost && data.BuildCostResource != null && Inventory.Instance != null
+                    ? Inventory.Instance.GetItemCount(data.BuildCostResource)
                     : 0;
                 if (!canAfford)
                 {
-                    promptText.text = $"[B] Exit  |  <color=#FF5555>{data?.DisplayName}: None in inventory or storage</color>";
+                    promptText.text = $"[B] Exit  |  <color=#FF5555>{data?.DisplayName}: {affordMsg}</color>";
                 }
                 else
                 {
-                    promptText.text = $"[B] Exit Build Mode  |  [LMB] Place {data?.DisplayName} ({count} available)  |  [R] Rotate";
+                    string costText = data != null && data.HasBuildCost ? $" ({count} available)" : " (Free)";
+                    promptText.text = $"[B] Exit Build Mode  |  [LMB] Place {data?.DisplayName}{costText}  |  [R] Rotate";
                 }
             }
             else
